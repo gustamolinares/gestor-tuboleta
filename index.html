@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor de Proyectos — Tuboleta · BeatHub</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#f0ede7;--surface3:#e8e4dc;
+  --border:#ddd9d0;--border2:#ccc8be;
+  --text:#18170f;--text2:#6b6656;--text3:#a39e91;
+  --accent:#18170f;
+  --green:#2d6a4f;--green-bg:#eaf4ee;
+  --amber:#92620a;--amber-bg:#fef3e2;
+  --red:#9b2335;--red-bg:#fdf0f0;
+  --blue:#1a4480;--blue-bg:#e8f0fb;
+  --gray:#5c5f66;--gray-bg:#f1f3f5;
+  --purple:#5f3dc4;--purple-bg:#f0ebff;
+  --week-w:68px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
+#app{display:flex;flex-direction:column;height:100vh;min-height:600px;}
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.hdr-l{display:flex;align-items:center;gap:12px;}
+.logo{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;}
+.hdr-title{font-size:13px;font-weight:600;}
+.btn-new{padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;flex-shrink:0;}
+.tab{padding:9px 14px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--text);border-bottom-color:var(--text);}
+.body{display:flex;flex:1;overflow:hidden;}
+.panel-main{flex:1;overflow-y:auto;padding:16px 20px;}
+.panel-chat{width:290px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);flex-shrink:0;}
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 13px;}
+.sum-num{font-size:22px;font-weight:600;line-height:1;}
+.sum-lbl{font-size:10px;color:var(--text2);margin-top:3px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;}
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;}
+.filter-btn{padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.filter-btn:hover,.filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.search-inp{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--text);outline:none;width:160px;font-family:inherit;}
+.col-lbls{display:grid;grid-template-columns:18px 1fr 90px 80px 72px 76px 50px;gap:8px;padding:0 12px;margin-bottom:4px;}
+.col-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;font-family:'DM Mono',monospace;}
+.proj-list{display:flex;flex-direction:column;gap:5px;}
+.proj-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.proj-hdr{display:grid;grid-template-columns:18px 1fr 90px 80px 72px 76px 50px;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;transition:background .1s;}
+.proj-hdr:hover{background:var(--surface2);}
+.exp-icon{color:var(--text3);font-size:8px;transition:transform .2s;user-select:none;}
+.expanded .exp-icon{transform:rotate(90deg);}
+.proj-name{font-weight:600;font-size:12px;line-height:1.2;}
+.proj-cat-tag{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;font-family:'DM Mono',monospace;}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.bg{background:var(--green-bg);color:var(--green);}
+.ba{background:var(--amber-bg);color:var(--amber);}
+.br{background:var(--red-bg);color:var(--red);}
+.bb{background:var(--blue-bg);color:var(--blue);}
+.bgr{background:var(--gray-bg);color:var(--gray);}
+.bp{background:var(--purple-bg);color:var(--purple);}
+.prog-wrap{display:flex;align-items:center;gap:5px;}
+.prog-bar{flex:1;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;min-width:36px;}
+.prog-fill{height:100%;border-radius:2px;transition:width .4s;}
+.prog-lbl{font-size:10px;color:var(--text2);min-width:24px;text-align:right;font-family:'DM Mono',monospace;}
+.pri-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.pa{background:#ef4444;}.pm{background:#f59e0b;}.pb{background:#10b981;}
+.detail-panel{border-top:1px solid var(--border);background:#fafaf8;}
+.detail-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface2);padding:0 40px;}
+.dtab{padding:7px 12px;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+.dtab:hover{color:var(--text);}
+.dtab.active{color:var(--text);border-bottom-color:var(--text);}
+.detail-body{padding:12px 12px 14px 40px;}
+.task-list{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.task-item{display:flex;align-items:center;gap:7px;padding:5px 9px;background:var(--surface);border:1px solid var(--border);border-radius:5px;}
+.task-chk{width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;transition:all .15s;}
+.task-chk.done{background:var(--green);border-color:var(--green);color:#fff;}
+.task-txt{flex:1;font-size:11px;}.task-txt.done{text-decoration:line-through;color:var(--text3);}
+.task-owner{font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:10px;white-space:nowrap;}
+.task-due{font-size:10px;color:var(--text3);white-space:nowrap;}
+.task-del{color:var(--text3);cursor:pointer;font-size:13px;opacity:0;transition:opacity .15s;padding:0 2px;}
+.task-item:hover .task-del{opacity:1;}
+.add-form{display:flex;gap:5px;flex-wrap:wrap;}
+.t-inp{flex:1;min-width:80px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);font-size:11px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;}
+.t-sel{padding:4px 6px;border-radius:5px;border:1px solid var(--border);font-size:10px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;}
+.btn-add{padding:4px 9px;font-size:11px;border-radius:5px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.roadmap-wrap{overflow-x:auto;padding-bottom:4px;}
+.roadmap-grid{display:flex;flex-direction:column;gap:5px;min-width:700px;}
+.rm-header-row{display:flex;}
+.rm-week{width:var(--week-w);flex-shrink:0;font-size:9px;font-family:'DM Mono',monospace;color:var(--text3);text-align:center;padding:3px 2px;border-left:1px solid var(--border);text-transform:uppercase;}
+.rm-week.current{color:var(--blue);font-weight:600;background:var(--blue-bg);}
+.rm-row{display:flex;align-items:center;}
+.rm-label{width:130px;flex-shrink:0;font-size:11px;color:var(--text2);padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rm-cells{display:flex;flex:1;position:relative;}
+.rm-cell{width:var(--week-w);flex-shrink:0;height:26px;border-left:1px solid var(--border);}
+.rm-cell.current-col{background:rgba(26,68,128,.04);}
+.rm-bar{position:absolute;top:4px;height:18px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;z-index:1;}
+.rm-del{font-size:10px;color:var(--text3);cursor:pointer;margin-left:4px;opacity:0;flex-shrink:0;}
+.rm-row:hover .rm-del{opacity:1;}
+.rm-add{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
+.notes-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.note-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:9px 11px;}
+.note-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.note-title{font-size:11px;font-weight:600;}
+.note-date{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
+.note-body{font-size:11px;color:var(--text2);line-height:1.6;white-space:pre-wrap;}
+.note-del{color:var(--text3);cursor:pointer;font-size:13px;opacity:0;transition:opacity .15s;margin-left:8px;}
+.note-card:hover .note-del{opacity:1;}
+.note-form{display:flex;flex-direction:column;gap:6px;}
+.note-ti{padding:5px 9px;border-radius:5px;border:1px solid var(--border);font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;font-weight:600;}
+.note-ta{padding:7px 9px;border-radius:5px;border:1px solid var(--border);font-size:11px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;resize:vertical;min-height:65px;line-height:1.6;}
+.rep-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.rep-table th{background:var(--surface2);padding:7px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;}
+.rep-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:11px;}
+.rep-table tr:last-child td{border-bottom:none;}
+.rep-table tr:hover td{background:var(--surface2);}
+.today-sec{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.today-sec-hdr{padding:8px 13px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);display:flex;justify-content:space-between;font-family:'DM Mono',monospace;}
+.today-task{display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid var(--border);font-size:11px;}
+.today-task:last-child{border-bottom:none;}
+.today-tag{font-size:10px;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+.chat-hdr{padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);display:flex;align-items:center;gap:7px;font-family:'DM Mono',monospace;}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.chat-msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;}
+.msg{display:flex;flex-direction:column;gap:2px;}
+.msg-u .bubble{background:var(--accent);color:#fff;align-self:flex-end;border-radius:10px 10px 2px 10px;}
+.msg-a .bubble{background:var(--surface2);color:var(--text);align-self:flex-start;border-radius:10px 10px 10px 2px;}
+.bubble{padding:7px 10px;font-size:11px;line-height:1.5;max-width:230px;}
+.msg-lbl{font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;}
+.msg-u .msg-lbl{text-align:right;}
+.thinking{display:flex;align-items:center;gap:5px;padding:7px 10px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text3);width:fit-content;}
+.da span{animation:blink 1.2s infinite;display:inline-block;}
+.da span:nth-child(2){animation-delay:.2s}.da span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+.chat-inp-area{padding:9px 11px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;}
+.chat-inp{width:100%;padding:7px 9px;border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text);background:var(--bg);outline:none;resize:none;font-family:inherit;line-height:1.4;}
+.send-btn{width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;}
+.hints{display:flex;flex-direction:column;gap:3px;}
+.hint{font-size:10px;color:var(--text3);padding:3px 7px;border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:all .15s;line-height:1.3;}
+.hint:hover{background:var(--surface2);color:var(--text2);}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:200;align-items:center;justify-content:center;}
+.modal-ov.open{display:flex;}
+.modal{background:var(--surface);border-radius:10px;border:1px solid var(--border);padding:18px;width:400px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:13px;font-weight:700;margin-bottom:14px;}
+.fg{margin-bottom:10px;}
+.fl{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:3px;display:block;text-transform:uppercase;letter-spacing:.05em;font-family:'DM Mono',monospace;}
+.fi{width:100%;padding:6px 9px;border-radius:5px;border:1px solid var(--border);font-size:12px;color:var(--text);background:var(--surface);outline:none;font-family:inherit;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.modal-acts{display:flex;justify-content:flex-end;gap:7px;margin-top:14px;}
+.btn-cancel{padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit;}
+.btn-save{padding:5px 12px;border-radius:5px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.toggle-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.toggle{width:32px;height:18px;border-radius:9px;background:var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--accent);}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;}
+.toggle.on::after{left:16px;}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;}
+.btn:hover{background:var(--surface2);}
+.empty{padding:14px;text-align:center;color:var(--text3);font-size:11px;}
+@keyframes hl{0%{background:#fef9c3}100%{background:transparent}}
+.ai-hl{animation:hl 1.5s ease-out;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="hdr">
+  <div class="hdr-l">
+    <span class="logo">Tuboleta · BeatHub</span>
+    <span style="color:var(--border)">|</span>
+    <span class="hdr-title">Gestor de Proyectos</span>
+  </div>
+  <button class="btn-new" onclick="openModal()">+ Proyecto</button>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('projects',this)">Proyectos</div>
+  <div class="tab" onclick="switchTab('today',this)">Mi día</div>
+  <div class="tab" onclick="switchTab('report',this)">Reporte</div>
+</div>
+<div class="body">
+  <div class="panel-main" id="panel-main">
+    <div id="tab-projects">
+      <div class="sum-grid" id="sum-grid"></div>
+      <div class="filters">
+        <input class="search-inp" id="search-inp" placeholder="Buscar..." oninput="renderProjects()">
+        <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('Producto',this)">Producto</button>
+        <button class="filter-btn" onclick="setFilter('Proyecto',this)">Proyecto</button>
+        <button class="filter-btn" onclick="setFilter('Comercial',this)">Comercial</button>
+        <button class="filter-btn" onclick="setFilter('Alta',this)">Alta prioridad</button>
+      </div>
+      <div class="col-lbls">
+        <span></span><span class="col-lbl">Nombre</span><span class="col-lbl">Estado</span>
+        <span class="col-lbl">Progreso</span><span class="col-lbl">Prioridad</span>
+        <span class="col-lbl">Dueño</span><span class="col-lbl"></span>
+      </div>
+      <div class="proj-list" id="proj-list"></div>
+    </div>
+    <div id="tab-today" style="display:none"></div>
+    <div id="tab-report" style="display:none"></div>
+  </div>
+  <div class="panel-chat">
+    <div class="chat-hdr"><div class="ai-dot"></div>Asistente IA</div>
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="msg msg-a"><span class="msg-lbl">Asistente</span>
+        <div class="bubble">Hola Gustavo 👋 Gestor actualizado con el estado real de todos tus proyectos. Dime qué necesitas:<br><br>• <em>"Nota reunión Dimayor del miércoles 22"</em><br>• <em>"Marca CMS footer como completado"</em><br>• <em>"Añade tarea a Service Hub"</em></div>
+      </div>
+    </div>
+    <div class="chat-inp-area">
+      <div class="hints">
+        <div class="hint" onclick="fillHint(this)">📝 Nota de reunión con [proyecto]...</div>
+        <div class="hint" onclick="fillHint(this)">✅ Nueva tarea urgente en [proyecto]...</div>
+        <div class="hint" onclick="fillHint(this)">🗓 Nuevo hito en roadmap de [proyecto]...</div>
+      </div>
+      <textarea class="chat-inp" id="chat-inp" rows="2" placeholder="Instrucción o nota de reunión..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMsg()">Enviar</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="modal-ov" id="modal-ov">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Nuevo proyecto</div>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" id="f-name"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="f-cat"><option>Producto</option><option>Proyecto</option><option>Comercial</option><option>Interno</option></select></div>
+      <div class="fg"><label class="fl">Estado</label>
+        <select class="fi" id="f-status"><option>En curso</option><option>En riesgo</option><option>Bloqueado</option><option>Completado</option><option>Planeado</option></select></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle" id="prog-toggle" onclick="toggleProg()"></div>
+      <span style="font-size:12px">Mostrar barra de progreso</span>
+    </div>
+    <div id="prog-field" class="fg" style="display:none"><label class="fl">Progreso %</label><input class="fi" id="f-progress" type="number" min="0" max="100" value="0"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Prioridad</label>
+        <select class="fi" id="f-priority"><option>Alta</option><option>Media</option><option>Baja</option></select></div>
+      <div class="fg"><label class="fl">Dueño</label><input class="fi" id="f-owner"></div>
+    </div>
+    <div class="fg"><label class="fl">Próximo hito</label><input class="fi" id="f-milestone"></div>
+    <div class="fg"><label class="fl">Bloqueos</label><input class="fi" id="f-blockers"></div>
+    <div class="modal-acts">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveProject()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WEEK_W=68,TOTAL_WEEKS=16;
+function getMonday(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff));}
+function addWeeks(d,n){const dt=new Date(d);dt.setDate(dt.getDate()+n*7);return dt;}
+function fmtW(d){return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'});}
+function weekDiff(a,b){return Math.round((b-a)/(7*864e5));}
+const TODAY=new Date();
+const WEEK0=getMonday(addWeeks(TODAY,-2));
+const WEEK_LABELS=Array.from({length:TOTAL_WEEKS},(_,i)=>{const d=addWeeks(WEEK0,i);return{label:fmtW(d),date:d,isCurrent:weekDiff(getMonday(TODAY),d)===0};});
+
+let projects=[
+  {id:1,name:'Marketing de Afiliados',category:'Proyecto',status:'En curso',progress:40,showProgress:true,priority:'Alta',owner:'Gustavo',
+    milestone:'Lanzamiento piloto 10 afiliados',blockers:'Pendiente aprobación T&C y Business Plan',
+    tasks:[
+      {id:1,text:'Definir T&C para portal de afiliados',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+      {id:2,text:'Aprobación Business Plan del programa',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+      {id:3,text:'Socialización proceso conciliación con Área Administrativa',done:false,priority:'Alta',due:'Próxima semana',owner:'Gustavo'},
+      {id:4,text:'Definir Plan de Lanzamiento "Soft" con 10 afiliados',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:5,text:'Definir logo del programa (TRUFAN vs Tuboleta)',done:false,priority:'Media',due:'',owner:'Diseño'},
+      {id:6,text:'Guía de colores para landing page del programa',done:false,priority:'Media',due:'',owner:'Diseño'},
+      {id:7,text:'Definir correo especial para comunicación con afiliados',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:8,text:'Redactar copy: título, subtítulo y cuerpo de página de registro',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:9,text:'Redactar mensaje de bienvenida a afiliados aceptados',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:10,text:'Redactar mensaje "pendiente" durante proceso de registro',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:11,text:'Email marketing: mail afiliado aprobado',done:false,priority:'Baja',due:'',owner:'Gustavo'},
+      {id:12,text:'Email marketing: mail afiliado rechazado',done:false,priority:'Baja',due:'',owner:'Gustavo'},
+      {id:13,text:'Email marketing: mail de pago al afiliado',done:false,priority:'Baja',due:'',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'T&C + Business Plan',startWeek:2,endWeek:3,color:'#1a4480'},{id:2,label:'Piloto 10 afiliados',startWeek:4,endWeek:7,color:'#2d6a4f'},{id:3,label:'Desarrollo gráfico',startWeek:3,endWeek:5,color:'#5f3dc4'}],
+    notes:[{id:1,title:'Estado actual del programa',date:'2026-04-27',body:'Para avanzar a etapa final de implementación se requiere:\n- Definición de T&C para el portal\n- Aprobación del Business Plan\n- Socialización con Área Administrativa (Gustavo comparte proceso a inicio de semana)\n- Plan de lanzamiento "Soft" con 10 afiliados\n- Desarrollo gráfico: logo, colores, copy y emails (Tapfiliate)'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:2,name:'LATAM',category:'Proyecto',status:'En riesgo',progress:30,showProgress:true,priority:'Alta',owner:'Gustavo',
+    milestone:'Reporte de Julio',blockers:'Pendiente reporte de Julio',
+    tasks:[{id:1,text:'Entregar reporte de Julio',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'}],
+    roadmap:[{id:1,label:'Reporte Julio',startWeek:2,endWeek:3,color:'#9b2335'}],
+    notes:[],expanded:false,activeDetail:'tasks'},
+  {id:3,name:'Easy Tickets — La Noria Barranquilla',category:'Proyecto',status:'En curso',progress:85,showProgress:true,priority:'Alta',owner:'Equipo tech',
+    milestone:'Go-live venta web La Noria',blockers:'',
+    tasks:[
+      {id:1,text:'Finalizar pruebas en producción flujo completo La Noria',done:false,priority:'Alta',due:'Esta semana',owner:'Equipo tech'},
+      {id:2,text:'Planear fase 2: venta numerada',done:false,priority:'Media',due:'',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Pruebas producción',startWeek:2,endWeek:2,color:'#92620a'},{id:2,label:'Go-live fase 1',startWeek:3,endWeek:3,color:'#2d6a4f'},{id:3,label:'Fase 2: numerada',startWeek:5,endWeek:9,color:'#1a4480'}],
+    notes:[{id:1,title:'Estado fase 1',date:'2026-04-27',body:'En fase final de pruebas en producción del flujo completo para poner en venta La Noria Barranquilla. Primera fase de venta web Easy Tickets. Continuará evolucionando a fase 2: venta numerada.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:4,name:'Dimayor — Fan ID',category:'Proyecto',status:'En curso',progress:55,showProgress:true,priority:'Alta',owner:'Gustavo',
+    milestone:'Reunión 22 abr: presupuesto, cronograma y propuesta económica',blockers:'Respuesta pendiente Grupo Aval y Bancolombia',
+    tasks:[
+      {id:1,text:'Reunión miércoles 22: definir presupuesto y cronograma',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+      {id:2,text:'Recibir respuesta Grupo Aval',done:false,priority:'Alta',due:'Esta semana',owner:'Banco'},
+      {id:3,text:'Recibir respuesta Bancolombia',done:false,priority:'Alta',due:'Esta semana',owner:'Banco'},
+      {id:4,text:'Afinar propuesta económica para banco y Dimayor',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Presentación bancos',startWeek:1,endWeek:2,color:'#2d6a4f'},{id:2,label:'Reunión definición',startWeek:2,endWeek:2,color:'#1a4480'},{id:3,label:'Propuesta económica',startWeek:3,endWeek:4,color:'#92620a'},{id:4,label:'Negociación',startWeek:4,endWeek:7,color:'#5f3dc4'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Presentación realizada a bancos. Falta recibir respuesta de Grupo Aval y Bancolombia.\nReunión el miércoles 22 para definir presupuesto del proyecto, cronograma y propuesta económica para banco y Dimayor.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:5,name:'CRM — HubSpot',category:'Proyecto',status:'En riesgo',progress:35,showProgress:true,priority:'Alta',owner:'Jefferson',
+    milestone:'Mejoras APIs ventas/contactos + carritos abandonados',blockers:'Jefferson debe crear documento de campos (máx. miércoles 22)',
+    tasks:[
+      {id:1,text:'Revisar campos APIs ventas y contactos — crear documento',done:false,priority:'Alta',due:'Miércoles 22',owner:'Jefferson'},
+      {id:2,text:'Solicitar a TI mejoras a APIs (ventas, contactos, carritos)',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Doc APIs',startWeek:2,endWeek:2,color:'#9b2335'},{id:2,label:'Mejoras TI',startWeek:3,endWeek:5,color:'#92620a'},{id:3,label:'Carritos abandonados',startWeek:5,endWeek:7,color:'#1a4480'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Se solicitará a TI mejoras a APIs (ventas, contactos) y envío de carritos abandonados.\nPendiente: Jefferson debe revisar campos y crear documento antes del miércoles 22 de abril.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:6,name:'CMS',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Equipo tech',
+    milestone:'Newsletter',blockers:'',
+    tasks:[
+      {id:1,text:'Desplegar nuevo footer (martes 22 abr)',done:false,priority:'Alta',due:'Hoy',owner:'Equipo tech'},
+      {id:2,text:'Desarrollar newsletter',done:false,priority:'Media',due:'Próxima semana',owner:'Equipo tech'},
+    ],
+    roadmap:[{id:1,label:'Footer nuevo',startWeek:2,endWeek:2,color:'#2d6a4f'},{id:2,label:'Newsletter',startWeek:3,endWeek:5,color:'#1a4480'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Evolución continua. Se despliega el nuevo footer. Próxima tarea: newsletter.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:7,name:'Service Hub — Customer Portal',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Alta',owner:'Gustavo / Equipo',
+    milestone:'Boletas y eventos en customer portal (viernes)',blockers:'Faltan boletas (Juan Sánchez), base Azure (Andrés Prieto)',
+    tasks:[
+      {id:1,text:'Mandar tipificaciones',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+      {id:2,text:'Traer boletas al customer portal',done:false,priority:'Alta',due:'Viernes',owner:'Juan Sánchez'},
+      {id:3,text:'Traer eventos al customer portal',done:false,priority:'Alta',due:'',owner:'Juan Sánchez'},
+      {id:4,text:'Crear base no relacional en Azure',done:false,priority:'Alta',due:'',owner:'Andrés Prieto (BI)'},
+      {id:5,text:'Crear y aprobar webhook',done:false,priority:'Alta',due:'',owner:'Edilson'},
+      {id:6,text:'Desplegar API del webhook',done:false,priority:'Media',due:'',owner:'Johan'},
+      {id:7,text:'Construcción de flujos en Service Hub',done:true,priority:'Alta',due:'',owner:'Equipo'},
+      {id:8,text:'Diseño customer portal',done:true,priority:'Alta',due:'',owner:'Equipo'},
+      {id:9,text:'Cerrar sesión Tuboleta Pass',done:true,priority:'Media',due:'',owner:'Equipo'},
+    ],
+    roadmap:[{id:1,label:'Boletas + Eventos',startWeek:2,endWeek:3,color:'#1a4480'},{id:2,label:'Webhook',startWeek:2,endWeek:4,color:'#92620a'},{id:3,label:'Base Azure',startWeek:3,endWeek:5,color:'#5f3dc4'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Completado: flujos Service Hub, diseño customer portal, cerrar sesión Tuboleta Pass.\n\nPendiente Gustavo: tipificaciones.\nPendiente Juan Sánchez: boletas (viernes) y eventos.\nPendiente Andrés Prieto (BI): base no relacional Azure.\nPendiente Edilson: crear y aprobar webhook.\nPendiente Johan: desplegar API del webhook.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:8,name:'Agente IA',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo / Hiberus',
+    milestone:'Base de conocimiento con tono IA',blockers:'Hiberus explorando scraping de la página',
+    tasks:[
+      {id:1,text:'Revisión y ajuste base de conocimiento',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:2,text:'Definir tono y personalidad del agente IA',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:3,text:'Scraping de la página',done:false,priority:'Media',due:'',owner:'Hiberus'},
+    ],
+    roadmap:[{id:1,label:'Scraping',startWeek:2,endWeek:4,color:'#92620a'},{id:2,label:'Base conocimiento',startWeek:4,endWeek:6,color:'#1a4480'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Hiberus se encuentra explorando cómo scrapear la página.\nPendiente: revisar la base de conocimiento y definir tono como si fuera IA.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:9,name:'Plan Separa',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',
+    milestone:'Entrega formal a comercial y auditoría',blockers:'',
+    tasks:[
+      {id:1,text:'Entregar guía completa del producto a comercial',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:2,text:'Entrega formal a auditoría',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Entrega formal',startWeek:2,endWeek:4,color:'#2d6a4f'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Guía completa lista. Pendiente entrega formal del producto a comercial y auditoría.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:10,name:'Pásala',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo / Nicolás Paz',
+    milestone:'Nuevo dominio pasala.com + nuevo look & feel',blockers:'Falta banner new look (Nicolás Paz); falta acceso reporte reventa',
+    tasks:[
+      {id:1,text:'Desplegar banner nuevo look and feel',done:false,priority:'Alta',due:'',owner:'Nicolás Paz'},
+      {id:2,text:'Dar acceso a reporte de entradas en reventa',done:false,priority:'Alta',due:'',owner:'Pendiente'},
+      {id:3,text:'Análisis en base a Menta Tech para SecuTix',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:4,text:'Análisis comparativo con página reventa FIFA',done:false,priority:'Media',due:'',owner:'Gustavo'},
+      {id:5,text:'Poner el nuevo dominio pasala.com',done:false,priority:'Alta',due:'',owner:'Equipo tech'},
+    ],
+    roadmap:[{id:1,label:'Banner + look&feel',startWeek:2,endWeek:3,color:'#5f3dc4'},{id:2,label:'Dominio pasala.com',startWeek:3,endWeek:4,color:'#1a4480'},{id:3,label:'Análisis Menta/FIFA',startWeek:3,endWeek:6,color:'#92620a'}],
+    notes:[],expanded:false,activeDetail:'tasks'},
+  {id:11,name:'Marca Blanca — CMN / Onebox',category:'Comercial',status:'En curso',progress:60,showProgress:true,priority:'Alta',owner:'Gustavo',
+    milestone:'Respuesta CMN + Matriz funcionalidades Onebox',blockers:'Esperando respuesta CMN; falta entregar matriz a Onebox',
+    tasks:[
+      {id:1,text:'Esperar y hacer seguimiento respuesta CMN',done:false,priority:'Alta',due:'',owner:'CMN'},
+      {id:2,text:'Entregar matriz de funcionalidades a Onebox',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Respuesta CMN',startWeek:2,endWeek:4,color:'#92620a'},{id:2,label:'Onebox matriz',startWeek:2,endWeek:3,color:'#1a4480'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Propuesta entregada a CMN. Esperando respuesta.\nPendiente: entregar matriz de funcionalidades a Onebox.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:12,name:'Marca Blanca — Membresías Fútbol',category:'Comercial',status:'En curso',progress:50,showProgress:true,priority:'Alta',owner:'Gustavo',
+    milestone:'Demo América de Cali — viernes 24',blockers:'',
+    tasks:[
+      {id:1,text:'Propuesta Deportivo Cali',done:true,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:2,text:'Demo América de Cali — viernes 24 de abril',done:false,priority:'Alta',due:'Viernes',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Propuesta Cali',startWeek:1,endWeek:2,color:'#2d6a4f'},{id:2,label:'Demo América',startWeek:2,endWeek:2,color:'#1a4480'},{id:3,label:'Cierre',startWeek:4,endWeek:6,color:'#92620a'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Propuesta realizada al Deportivo Cali.\nDemo al América de Cali programada para el viernes 24 de abril.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:13,name:'TuBolso Seguro',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',
+    milestone:'Medir cambio UX implementado el 15 abr',blockers:'',
+    tasks:[
+      {id:1,text:'Medir impacto del cambio UX implementado el 15 de abril',done:false,priority:'Alta',due:'Esta semana',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Medición UX',startWeek:2,endWeek:3,color:'#2d6a4f'}],
+    notes:[{id:1,title:'Estado actual',date:'2026-04-27',body:'Cambio de UX implementado el miércoles 15 de abril. Pendiente medir resultados.'}],
+    expanded:false,activeDetail:'tasks'},
+  {id:14,name:'Asistencia — Hincha Asistido',category:'Producto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',
+    milestone:'Medir % conversión y probar nuevo UX',blockers:'',
+    tasks:[
+      {id:1,text:'Ver % de conversión del Hincha Asistido',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+      {id:2,text:'Probar otro UX para el Hincha Asistido',done:false,priority:'Media',due:'',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Análisis conversión',startWeek:2,endWeek:3,color:'#92620a'},{id:2,label:'Test nuevo UX',startWeek:4,endWeek:6,color:'#5f3dc4'}],
+    notes:[],expanded:false,activeDetail:'tasks'},
+  {id:15,name:'Nuevo Sistema de Ventas',category:'Proyecto',status:'Planeado',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',
+    milestone:'Creación de matriz de funcionalidades',blockers:'Matriz aún no iniciada',
+    tasks:[
+      {id:1,text:'Crear matriz de funcionalidades del nuevo sistema de ventas',done:false,priority:'Alta',due:'',owner:'Gustavo'},
+    ],
+    roadmap:[{id:1,label:'Matriz funcionalidades',startWeek:3,endWeek:6,color:'#1a4480'}],
+    notes:[],expanded:false,activeDetail:'tasks'},
+];
+
+let filterMode='todos',editingId=null,showProgToggle=false;
+
+function statusBadge(s){const m={'En curso':'bb','En riesgo':'ba','Bloqueado':'br','Completado':'bg','Planeado':'bgr'};return `<span class="badge ${m[s]||'bgr'}">${s}</span>`;}
+function priDot(p){const c=p==='Alta'?'pa':p==='Media'?'pm':'pb';return `<span class="pri-dot ${c}"></span><span style="font-size:11px;margin-left:4px">${p}</span>`;}
+function progColor(n){return n>=75?'#2d6a4f':n>=40?'#b45309':'#6b7280';}
+
+function renderSummary(){
+  const total=projects.length,ec=projects.filter(p=>p.status==='En curso').length,
+    er=projects.filter(p=>p.status==='En riesgo'||p.status==='Bloqueado').length,
+    pt=projects.reduce((a,p)=>a+p.tasks.filter(t=>!t.done).length,0);
+  document.getElementById('sum-grid').innerHTML=`
+    <div class="sum-card"><div class="sum-num">${total}</div><div class="sum-lbl">Proyectos</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:var(--blue)">${ec}</div><div class="sum-lbl">En curso</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:var(--amber)">${er}</div><div class="sum-lbl">En riesgo</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:var(--red)">${pt}</div><div class="sum-lbl">Tareas pend.</div></div>`;
+}
+
+function renderProjects(){
+  const search=(document.getElementById('search-inp')||{value:''}).value.toLowerCase();
+  let list=projects.filter(p=>{
+    if(filterMode==='Alta')return p.priority==='Alta';
+    if(filterMode!=='todos')return p.category===filterMode;
+    return true;
+  }).filter(p=>p.name.toLowerCase().includes(search));
+  const c=document.getElementById('proj-list');if(!c)return;
+  c.innerHTML='';
+  list.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='proj-row'+(p.expanded?' expanded':'');
+    row.id='proj-row-'+p.id;
+    const progHtml=p.showProgress?`<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`:`<span style="font-size:10px;color:var(--text3)">—</span>`;
+    row.innerHTML=`
+      <div class="proj-hdr" onclick="toggleProj(${p.id})">
+        <span class="exp-icon">▶</span>
+        <div><div class="proj-name">${p.name}</div><div class="proj-cat-tag">${p.category}</div></div>
+        <div>${statusBadge(p.status)}</div>
+        <div>${progHtml}</div>
+        <div style="display:flex;align-items:center">${priDot(p.priority)}</div>
+        <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.owner}</div>
+        <div><button class="btn" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();editProject(${p.id})">✎</button></div>
+      </div>
+      ${p.expanded?renderDetail(p):''}`;
+    c.appendChild(row);
+  });
+  renderSummary();
+}
+
+function renderDetail(p){
+  const tabs=['tasks','roadmap','notes'];
+  const labels={'tasks':'Tareas','roadmap':'Roadmap','notes':'Notas'};
+  const active=p.activeDetail||'tasks';
+  const dtabs=tabs.map(t=>`<div class="dtab${active===t?' active':''}" onclick="setDetailTab(${p.id},'${t}')">${labels[t]}${t==='notes'&&p.notes.length?` (${p.notes.length})`:''}</div>`).join('');
+  let body='';
+  if(active==='tasks')body=renderTasks(p);
+  else if(active==='roadmap')body=renderRoadmap(p);
+  else if(active==='notes')body=renderNotes(p);
+  return `<div class="detail-panel"><div class="detail-tabs">${dtabs}</div><div class="detail-body">${body}</div></div>`;
+}
+
+function setDetailTab(pid,tab){const p=projects.find(x=>x.id===pid);if(!p)return;p.activeDetail=tab;renderProjects();}
+
+function renderTasks(p){
+  const done=p.tasks.filter(t=>t.done),pending=p.tasks.filter(t=>!t.done);
+  const rg=(items)=>items.map(t=>`
+    <div class="task-item">
+      <div class="task-chk${t.done?' done':''}" onclick="toggleTask(${p.id},${t.id})">${t.done?'✓':''}</div>
+      <span class="task-txt${t.done?' done':''}">${t.text}</span>
+      ${t.owner&&t.owner!=='Gustavo'?`<span class="task-owner">${t.owner}</span>`:''}
+      ${t.due?`<span class="task-due">${t.due}</span>`:''}
+      <span class="badge ${t.priority==='Alta'?'br':t.priority==='Media'?'ba':'bgr'}" style="font-size:9px">${t.priority}</span>
+      <span class="task-del" onclick="deleteTask(${p.id},${t.id})">×</span>
+    </div>`).join('');
+  return `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:7px;font-family:'DM Mono',monospace">Tareas (${done.length}/${p.tasks.length} completadas)</div>
+  <div class="task-list">${pending.length?rg(pending):''}${done.length?rg(done):''}</div>
+  ${!p.tasks.length?'<div class="empty">Sin tareas aún</div>':''}
+  <div class="add-form">
+    <input class="t-inp" id="ti-${p.id}" placeholder="Nueva tarea..." onkeydown="if(event.key==='Enter')addTask(${p.id})">
+    <input class="t-inp" id="to-${p.id}" placeholder="Dueño" style="max-width:90px">
+    <select class="t-sel" id="tp-${p.id}"><option>Alta</option><option selected>Media</option><option>Baja</option></select>
+    <select class="t-sel" id="td-${p.id}"><option value="">Sin fecha</option><option>Hoy</option><option>Esta semana</option><option>Próxima semana</option></select>
+    <button class="btn-add" onclick="addTask(${p.id})">+ Tarea</button>
+  </div>`;
+}
+
+function renderRoadmap(p){
+  const headerCells=WEEK_LABELS.map(w=>`<div class="rm-week${w.isCurrent?' current':''}">${w.label}</div>`).join('');
+  const rows=p.roadmap.map(item=>{
+    const s=Math.max(0,item.startWeek),e=Math.min(TOTAL_WEEKS-1,item.endWeek);
+    const cells=WEEK_LABELS.map((_,i)=>`<div class="rm-cell${WEEK_LABELS[i].isCurrent?' current-col':''}"></div>`).join('');
+    const left=s*WEEK_W,width=(e-s+1)*WEEK_W-4;
+    return `<div class="rm-row">
+      <div class="rm-label" title="${item.label}">${item.label}</div>
+      <div class="rm-cells">${cells}<div class="rm-bar" style="left:${left+2}px;width:${width}px;background:${item.color}">${item.label}</div></div>
+      <span class="rm-del" onclick="deleteRmItem(${p.id},${item.id})">×</span>
+    </div>`;
+  }).join('');
+  return `<div class="roadmap-wrap"><div class="roadmap-grid">
+    <div style="display:flex"><div style="width:130px;flex-shrink:0"></div><div class="rm-header-row">${headerCells}</div></div>
+    ${rows||'<div class="empty">Sin hitos en el roadmap</div>'}
+  </div></div>
+  <div class="rm-add">
+    <input class="t-inp" id="rm-lbl-${p.id}" placeholder="Nombre del hito..." style="min-width:120px">
+    <input class="t-inp" type="number" id="rm-sw-${p.id}" placeholder="Sem. inicio" min="0" max="15" style="width:90px">
+    <input class="t-inp" type="number" id="rm-ew-${p.id}" placeholder="Sem. fin" min="0" max="15" style="width:90px">
+    <input class="t-inp" type="color" id="rm-col-${p.id}" value="#1a4480" style="width:38px;padding:2px;cursor:pointer">
+    <button class="btn-add" onclick="addRmItem(${p.id})">+ Hito</button>
+  </div>
+  <div style="font-size:10px;color:var(--text3);margin-top:6px">Semana 0 = hace 2 semanas. Semana 2 = semana actual.</div>`;
+}
+
+function renderNotes(p){
+  const items=p.notes.map(n=>`
+    <div class="note-card">
+      <div class="note-hdr">
+        <span class="note-title">${n.title}</span>
+        <div style="display:flex;align-items:center">
+          <span class="note-date">${n.date}</span>
+          <span class="note-del" onclick="deleteNote(${p.id},${n.id})">×</span>
+        </div>
+      </div>
+      <div class="note-body">${n.body}</div>
+    </div>`).join('');
+  return `<div class="notes-list">${items||'<div class="empty">Sin notas aún</div>'}</div>
+  <div class="note-form">
+    <input class="note-ti" id="nt-${p.id}" placeholder="Título (ej: Reunión Dimayor — 22 abr)">
+    <textarea class="note-ta" id="nb-${p.id}" placeholder="Notas de reunión, acuerdos, próximos pasos..."></textarea>
+    <button class="btn-add" onclick="addNote(${p.id})">+ Guardar nota</button>
+  </div>`;
+}
+
+function toggleProj(id){const p=projects.find(x=>x.id===id);if(p)p.expanded=!p.expanded;renderProjects();}
+function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;renderProjects();}
+function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);renderProjects();}
+function addTask(pid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const inp=document.getElementById('ti-'+pid);const txt=inp.value.trim();if(!txt)return;
+  const own=document.getElementById('to-'+pid).value.trim();
+  const pri=document.getElementById('tp-'+pid).value;const due=document.getElementById('td-'+pid).value;
+  const mx=p.tasks.length?Math.max(...p.tasks.map(t=>t.id)):0;
+  p.tasks.push({id:mx+1,text:txt,done:false,priority:pri,due,owner:own||'Gustavo'});renderProjects();
+}
+function addRmItem(pid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const lbl=document.getElementById('rm-lbl-'+pid).value.trim();if(!lbl)return;
+  const sw=parseInt(document.getElementById('rm-sw-'+pid).value)||0;
+  const ew=parseInt(document.getElementById('rm-ew-'+pid).value)||sw;
+  const col=document.getElementById('rm-col-'+pid).value;
+  const mx=p.roadmap.length?Math.max(...p.roadmap.map(r=>r.id)):0;
+  p.roadmap.push({id:mx+1,label:lbl,startWeek:sw,endWeek:ew,color:col});renderProjects();
+}
+function deleteRmItem(pid,rid){const p=projects.find(x=>x.id===pid);if(!p)return;p.roadmap=p.roadmap.filter(x=>x.id!==rid);renderProjects();}
+function addNote(pid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const title=document.getElementById('nt-'+pid).value.trim()||'Nota';
+  const body=document.getElementById('nb-'+pid).value.trim();if(!body)return;
+  const mx=p.notes.length?Math.max(...p.notes.map(n=>n.id)):0;
+  p.notes.unshift({id:mx+1,title,date:new Date().toISOString().slice(0,10),body});renderProjects();
+}
+function deleteNote(pid,nid){const p=projects.find(x=>x.id===pid);if(!p)return;p.notes=p.notes.filter(x=>x.id!==nid);renderProjects();}
+function setFilter(m,el){filterMode=m;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProjects();}
+
+function switchTab(tab,el){
+  ['projects','today','report'].forEach(t=>{const e=document.getElementById('tab-'+t);if(e)e.style.display='none';});
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const target=document.getElementById('tab-'+tab);if(target)target.style.display='';
+  el.classList.add('active');
+  if(tab==='report')renderReport();
+  if(tab==='today')renderToday();
+}
+
+function renderReport(){
+  const tab=document.getElementById('tab-report');
+  tab.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><div style="font-size:13px;font-weight:700">Reporte de estado</div><div style="font-size:11px;color:var(--text2);margin-top:2px">${new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div></div>
+    <button class="btn" onclick="copyReport()">Copiar tabla</button>
+  </div>
+  <table class="rep-table"><thead><tr>
+    <th>Proyecto</th><th>Categoría</th><th>Estado</th><th>Avance</th><th>Prioridad</th><th>Próximo hito</th><th>Bloqueos</th>
+  </tr></thead><tbody>
+  ${projects.map(p=>`<tr>
+    <td><strong>${p.name}</strong></td><td><span class="badge bgr">${p.category}</span></td>
+    <td>${statusBadge(p.status)}</td>
+    <td>${p.showProgress?`<div class="prog-wrap"><div class="prog-bar" style="min-width:50px"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`:'—'}</td>
+    <td>${priDot(p.priority)}</td>
+    <td style="color:var(--text2);max-width:160px">${p.milestone||'—'}</td>
+    <td style="color:${p.blockers?'var(--red)':'var(--text3)'};max-width:160px">${p.blockers||'—'}</td>
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderToday(){
+  const tab=document.getElementById('tab-today');
+  const hoy=[],semana=[],resto=[];
+  projects.forEach(p=>p.tasks.filter(t=>!t.done).forEach(t=>{
+    const item={...t,projName:p.name,projId:p.id};
+    if(t.due==='Hoy')hoy.push(item);
+    else if(t.priority==='Alta'||t.due==='Esta semana')semana.push(item);
+    else resto.push(item);
+  }));
+  const ri=(items,emptyMsg)=>items.length?items.map(t=>`
+    <div class="today-task">
+      <div class="task-chk" onclick="toggleTaskG(${t.projId},${t.id})" style="cursor:pointer;width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border2);font-size:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
+      <span style="flex:1;font-size:11px">${t.text}</span>
+      ${t.owner&&t.owner!=='Gustavo'?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 5px;border-radius:10px;white-space:nowrap;flex-shrink:0">${t.owner}</span>`:''}
+      <span class="today-tag">${t.projName}</span>
+    </div>`).join(''):`<div class="empty">${emptyMsg}</div>`;
+  tab.innerHTML=`
+    <div class="today-sec"><div class="today-sec-hdr"><span>Para hoy</span><span style="font-weight:400">${hoy.length}</span></div>${ri(hoy,'Sin tareas para hoy')}</div>
+    <div class="today-sec"><div class="today-sec-hdr"><span>Esta semana — alta prioridad</span><span style="font-weight:400">${semana.length}</span></div>${ri(semana,'Sin tareas urgentes')}</div>
+    <div class="today-sec"><div class="today-sec-hdr"><span>Resto de tareas pendientes</span><span style="font-weight:400">${resto.length}</span></div>${ri(resto,'Sin más tareas')}</div>`;
+}
+function toggleTaskG(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;renderToday();}
+
+function copyReport(){
+  let txt='REPORTE DE ESTADO — TUBOLETA / BEATHUB\n'+new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'\n\n';
+  txt+=['Proyecto','Categoría','Estado','Avance','Prioridad','Próximo hito','Bloqueos'].join('\t')+'\n';
+  projects.forEach(p=>{txt+=[p.name,p.category,p.status,p.showProgress?p.progress+'%':'—',p.priority,p.milestone||'—',p.blockers||'—'].join('\t')+'\n';});
+  navigator.clipboard.writeText(txt).then(()=>addAiMsg('Tabla copiada al portapapeles ✓'));
+}
+
+function toggleProg(){showProgToggle=!showProgToggle;document.getElementById('prog-toggle').className='toggle'+(showProgToggle?' on':'');document.getElementById('prog-field').style.display=showProgToggle?'':'none';}
+function openModal(){editingId=null;showProgToggle=false;['name','owner','milestone','blockers'].forEach(f=>document.getElementById('f-'+f).value='');document.getElementById('f-progress').value='0';document.getElementById('prog-toggle').className='toggle';document.getElementById('prog-field').style.display='none';document.getElementById('modal-title').textContent='Nuevo proyecto';document.getElementById('modal-ov').classList.add('open');}
+function editProject(id){
+  const p=projects.find(x=>x.id===id);if(!p)return;
+  editingId=id;showProgToggle=p.showProgress;
+  ['name','owner','milestone','blockers'].forEach(f=>document.getElementById('f-'+f).value=p[f]||'');
+  document.getElementById('f-cat').value=p.category;document.getElementById('f-status').value=p.status;
+  document.getElementById('f-progress').value=p.progress;document.getElementById('f-priority').value=p.priority;
+  document.getElementById('prog-toggle').className='toggle'+(showProgToggle?' on':'');
+  document.getElementById('prog-field').style.display=showProgToggle?'':'none';
+  document.getElementById('modal-title').textContent='Editar proyecto';document.getElementById('modal-ov').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-ov').classList.remove('open');}
+function saveProject(){
+  const name=document.getElementById('f-name').value.trim();if(!name)return;
+  const data={name,category:document.getElementById('f-cat').value,status:document.getElementById('f-status').value,progress:parseInt(document.getElementById('f-progress').value)||0,showProgress:showProgToggle,priority:document.getElementById('f-priority').value,owner:document.getElementById('f-owner').value.trim(),milestone:document.getElementById('f-milestone').value.trim(),blockers:document.getElementById('f-blockers').value.trim()};
+  if(editingId){Object.assign(projects.find(x=>x.id===editingId),data);}
+  else{const mx=projects.length?Math.max(...projects.map(p=>p.id)):0;projects.push({id:mx+1,tasks:[],roadmap:[],notes:[],expanded:false,activeDetail:'tasks',...data});}
+  closeModal();renderProjects();
+}
+document.getElementById('modal-ov').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function fillHint(el){document.getElementById('chat-inp').value=el.textContent.replace(/^[^\s]+\s/,'');document.getElementById('chat-inp').focus();}
+function addUserMsg(t){const c=document.getElementById('chat-msgs');c.innerHTML+=`<div class="msg msg-u"><span class="msg-lbl">Tú</span><div class="bubble">${t}</div></div>`;c.scrollTop=c.scrollHeight;}
+function addAiMsg(t){const c=document.getElementById('chat-msgs');c.innerHTML+=`<div class="msg msg-a"><span class="msg-lbl">Asistente</span><div class="bubble">${t}</div></div>`;c.scrollTop=c.scrollHeight;}
+function showThinking(){const c=document.getElementById('chat-msgs');const el=document.createElement('div');el.id='thinking';el.innerHTML=`<div class="thinking"><div class="da"><span>·</span><span>·</span><span>·</span></div> Procesando...</div>`;c.appendChild(el);c.scrollTop=c.scrollHeight;}
+function removeThinking(){const el=document.getElementById('thinking');if(el)el.remove();}
+function hlProj(id){const el=document.getElementById('proj-row-'+id);if(el){el.classList.remove('ai-hl');void el.offsetWidth;el.classList.add('ai-hl');}}
+
+async function sendMsg(){
+  const inp=document.getElementById('chat-inp');const txt=inp.value.trim();if(!txt)return;
+  const btn=document.getElementById('send-btn');inp.value='';btn.disabled=true;
+  addUserMsg(txt);showThinking();
+  const sys=`Eres un asistente de gestión de proyectos para Gustavo (Tuboleta/BeatHub, Colombia).
+Interpreta instrucciones en lenguaje natural y devuelve JSON con acciones sobre el gestor.
+Proyectos: ${JSON.stringify(projects.map(p=>({id:p.id,name:p.name,status:p.status,progress:p.progress,priority:p.priority,milestone:p.milestone,blockers:p.blockers,taskCount:p.tasks.length,noteCount:p.notes.length})))}
+Responde ÚNICAMENTE JSON válido sin markdown:
+{"actions":[{"type":"update_project"|"add_task"|"add_project"|"add_note"|"add_roadmap_item"|"update_milestone"|"update_blockers","projectId":number,"field":string,"value":any,"taskText":string,"taskPriority":"Alta"|"Media"|"Baja","taskDue":string,"taskOwner":string,"noteTitle":string,"noteBody":string,"rmLabel":string,"rmStartWeek":number,"rmEndWeek":number,"rmColor":string,"projectName":string,"category":string}],"summary":"Resumen en español"}
+Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
+  try{
+    const res=await fetch('/.netlify/functions/claude-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,system:sys,messages:[{role:'user',content:txt}]})});
+    const data=await res.json();removeThinking();
+    const raw=data.content.map(i=>i.text||'').join('');
+    let parsed;try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){addAiMsg('No pude interpretar la respuesta.');btn.disabled=false;return;}
+    const affected=new Set();
+    for(const a of(parsed.actions||[])){
+      const p=a.projectId?projects.find(x=>x.id===a.projectId):null;
+      if(a.type==='update_project'&&p){p[a.field]=a.field==='progress'?parseInt(a.value):a.value;affected.add(p.id);}
+      else if(a.type==='add_task'&&p){const mx=p.tasks.length?Math.max(...p.tasks.map(t=>t.id)):0;p.tasks.push({id:mx+1,text:a.taskText,done:false,priority:a.taskPriority||'Media',due:a.taskDue||'',owner:a.taskOwner||'Gustavo'});affected.add(p.id);}
+      else if(a.type==='add_note'&&p){const mx=p.notes.length?Math.max(...p.notes.map(n=>n.id)):0;p.notes.unshift({id:mx+1,title:a.noteTitle||'Nota',date:new Date().toISOString().slice(0,10),body:a.noteBody||''});p.activeDetail='notes';affected.add(p.id);}
+      else if(a.type==='add_roadmap_item'&&p){const mx=p.roadmap.length?Math.max(...p.roadmap.map(r=>r.id)):0;p.roadmap.push({id:mx+1,label:a.rmLabel||'Hito',startWeek:a.rmStartWeek||0,endWeek:a.rmEndWeek||1,color:a.rmColor||'#1a4480'});p.activeDetail='roadmap';affected.add(p.id);}
+      else if(a.type==='update_milestone'&&p){p.milestone=a.value;affected.add(p.id);}
+      else if(a.type==='update_blockers'&&p){p.blockers=a.value;affected.add(p.id);}
+      else if(a.type==='add_project'){const mx=projects.length?Math.max(...projects.map(x=>x.id)):0;const np={id:mx+1,name:a.projectName||'Nuevo',category:a.category||'Proyecto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',milestone:'',blockers:'',tasks:[],roadmap:[],notes:[],expanded:false,activeDetail:'tasks'};projects.push(np);affected.add(np.id);}
+    }
+    renderProjects();affected.forEach(id=>hlProj(id));addAiMsg(parsed.summary||'Listo.');
+  }catch(err){removeThinking();addAiMsg('Error de conexión.');console.error(err);}
+  btn.disabled=false;
+}
+renderProjects();
+</script>
+</body>
+</html>
