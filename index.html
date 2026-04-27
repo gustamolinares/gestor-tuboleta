@@ -750,26 +750,68 @@ function renderReport(){
   </tbody></table>`;
 }
 
-function renderToday(){
+function renderToday(ownerFilter='todas'){
   const tab=document.getElementById('tab-today');
-  const hoy=[],semana=[],resto=[];
+  const hoy=[],urgente=[],proxima=[],backlog=[];
   projects.forEach(p=>p.tasks.filter(t=>!t.done).forEach(t=>{
-    const item={...t,projName:p.name,projId:p.id};
-    if(t.due==='Hoy')hoy.push(item);
-    else if(t.priority==='Alta'||t.due==='Esta semana')semana.push(item);
-    else resto.push(item);
+    const item={...t,projName:p.name,projId:p.id,projStatus:p.status};
+    if(ownerFilter==='mias'&&t.owner&&t.owner!=='Gustavo') return;
+    if(ownerFilter==='delegadas'&&(!t.owner||t.owner==='Gustavo')) return;
+    if(t.due==='Hoy') hoy.push(item);
+    else if(t.priority==='Alta'&&(t.due==='Esta semana'||!t.due)) urgente.push(item);
+    else if(t.due==='Esta semana'||t.due==='Próxima semana') proxima.push(item);
+    else backlog.push(item);
   }));
-  const ri=(items,emptyMsg)=>items.length?items.map(t=>`
-    <div class="today-task">
-      <div class="task-chk" onclick="toggleTaskG(${t.projId},${t.id})" style="cursor:pointer;width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border2);font-size:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
-      <span style="flex:1;font-size:11px">${t.text}</span>
-      ${t.owner&&t.owner!=='Gustavo'?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 5px;border-radius:10px;white-space:nowrap;flex-shrink:0">${t.owner}</span>`:''}
-      <span class="today-tag">${t.projName}</span>
-    </div>`).join(''):`<div class="empty">${emptyMsg}</div>`;
+
+  const statusOrder={'Bloqueado':0,'En riesgo':1,'En curso':2,'Planeado':3,'Completado':4};
+  urgente.sort((a,b)=>(statusOrder[a.projStatus]||2)-(statusOrder[b.projStatus]||2));
+  const totalPending=hoy.length+urgente.length+proxima.length+backlog.length;
+  const today=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'});
+
+  const taskRow=(t,accentColor)=>`
+    <div class="today-task" style="border-left:3px solid ${accentColor}">
+      <div class="task-chk" onclick="toggleTaskG(${t.projId},${t.id})" style="cursor:pointer;width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border2);font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--text);line-height:1.3">${t.text}</div>
+        <div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 7px;border-radius:10px">${t.projName}</span>
+          ${t.owner&&t.owner!=='Gustavo'?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:10px">👤 ${t.owner}</span>`:'<span style="font-size:10px;color:var(--green);background:var(--green-bg);padding:1px 6px;border-radius:10px">Yo</span>'}
+          ${t.due?`<span style="font-size:10px;color:var(--text3)">${t.due}</span>`:''}
+        </div>
+      </div>
+      <span class="badge ${t.priority==='Alta'?'br':t.priority==='Media'?'ba':'bgr'}" style="font-size:9px;flex-shrink:0">${t.priority}</span>
+    </div>`;
+
+  const section=(title,icon,items,emptyMsg,color,bg)=>`
+    <div class="today-sec" style="border-left:3px solid ${color}">
+      <div class="today-sec-hdr" style="background:${bg}">
+        <span>${icon} ${title}</span>
+        <span style="font-weight:400;font-size:11px">${items.length} tarea${items.length!==1?'s':''}</span>
+      </div>
+      ${items.length?items.map(t=>taskRow(t,color)).join(''):`<div class="empty" style="padding:12px 16px;color:var(--text3);font-size:11px">${emptyMsg} ✓</div>`}
+    </div>`;
+
+  const filters=[
+    {k:'todas',label:'Todas'},
+    {k:'mias',label:'Solo mías'},
+    {k:'delegadas',label:'Delegadas'},
+  ];
+  const filterBar=`<div style="display:flex;gap:6px">
+    ${filters.map(f=>`<button onclick="renderToday('${f.k}')" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:${ownerFilter===f.k?'var(--accent)':'var(--surface)'};color:${ownerFilter===f.k?'#fff':'var(--text2)'};font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s">${f.label}</button>`).join('')}
+  </div>`;
+
   tab.innerHTML=`
-    <div class="today-sec"><div class="today-sec-hdr"><span>Para hoy</span><span style="font-weight:400">${hoy.length}</span></div>${ri(hoy,'Sin tareas para hoy')}</div>
-    <div class="today-sec"><div class="today-sec-hdr"><span>Esta semana — alta prioridad</span><span style="font-weight:400">${semana.length}</span></div>${ri(semana,'Sin tareas urgentes')}</div>
-    <div class="today-sec"><div class="today-sec-hdr"><span>Resto de tareas pendientes</span><span style="font-weight:400">${resto.length}</span></div>${ri(resto,'Sin más tareas')}</div>`;
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:13px;font-weight:700;text-transform:capitalize">${today}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${totalPending} tarea${totalPending!==1?'s':''} pendiente${totalPending!==1?'s':''}</div>
+      </div>
+      ${filterBar}
+    </div>
+    ${section('Para hoy','🔴',hoy,'Nada para hoy','#9b2335','#fdf0f0')}
+    ${section('Alta prioridad','🟠',urgente,'Sin tareas de alta prioridad','#92620a','#fef3e2')}
+    ${section('Esta semana','🔵',proxima,'Sin tareas para esta semana','#1a4480','#e8f0fb')}
+    ${section('Backlog','⚪',backlog,'Sin tareas en backlog','var(--border2)','var(--surface2)')}`;
 }
 function toggleTaskG(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();renderToday();}
 
@@ -816,8 +858,15 @@ async function sendMsg(){
   const sys=`Eres un asistente de gestión de proyectos para Gustavo (Tuboleta/BeatHub, Colombia).
 Interpreta instrucciones en lenguaje natural y devuelve JSON con acciones sobre el gestor.
 Proyectos: ${JSON.stringify(projects.map(p=>({id:p.id,name:p.name,status:p.status,progress:p.progress,priority:p.priority,milestone:p.milestone,blockers:p.blockers,taskCount:p.tasks.length,noteCount:p.notes.length})))}
+
+REGLA CRÍTICA para taskDue — usa EXACTAMENTE uno de estos valores (sin variaciones):
+- "Hoy" → cuando el usuario dice "hoy", "ahora", "urgente para hoy", "lo antes posible hoy"
+- "Esta semana" → cuando dice "esta semana", "en los próximos días", "pronto"  
+- "Próxima semana" → cuando dice "próxima semana", "la semana que viene"
+- "" (vacío) → cuando no menciona fecha
+
 Responde ÚNICAMENTE JSON válido sin markdown:
-{"actions":[{"type":"update_project"|"add_task"|"add_project"|"add_note"|"add_roadmap_item"|"update_milestone"|"update_blockers","projectId":number,"field":string,"value":any,"taskText":string,"taskPriority":"Alta"|"Media"|"Baja","taskDue":string,"taskOwner":string,"noteTitle":string,"noteBody":string,"rmLabel":string,"rmStartWeek":number,"rmEndWeek":number,"rmColor":string,"projectName":string,"category":string}],"summary":"Resumen en español"}
+{"actions":[{"type":"update_project"|"add_task"|"add_project"|"add_note"|"add_roadmap_item"|"update_milestone"|"update_blockers","projectId":number,"field":string,"value":any,"taskText":string,"taskPriority":"Alta"|"Media"|"Baja","taskDue":"Hoy"|"Esta semana"|"Próxima semana"|"","taskOwner":string,"noteTitle":string,"noteBody":string,"rmLabel":string,"rmStartWeek":number,"rmEndWeek":number,"rmColor":string,"projectName":string,"category":string}],"summary":"Resumen en español"}
 Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
   try{
     const res=await fetch('/.netlify/functions/claude-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:sys,messages:[{role:'user',content:txt}]})});
