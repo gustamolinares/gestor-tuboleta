@@ -467,9 +467,6 @@ function renderProjects(){
     list.forEach(p=>c.appendChild(makeProjectRow(p)));
   }
   renderSummary();
-  // Auto-refresh Mi día if it's visible
-  const todayTab=document.getElementById('tab-today');
-  if(todayTab&&todayTab.style.display!=='none') renderToday();
 }
 
 function makeProjectRow(p){
@@ -693,15 +690,16 @@ function renderNotes(p){
 }
 
 function toggleProj(id){const p=projects.find(x=>x.id===id);if(p)p.expanded=!p.expanded;renderProjects();}
-function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();renderProjects();}
-function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);saveState();renderProjects();}
+function refreshAll(){renderProjects();const t=document.getElementById('tab-today');if(t&&t.style.display!=='none')renderToday();}
+function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();refreshAll();}
+function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);saveState();refreshAll();}
 function addTask(pid){
   const p=projects.find(x=>x.id===pid);if(!p)return;
   const inp=document.getElementById('ti-'+pid);const txt=inp.value.trim();if(!txt)return;
   const own=document.getElementById('to-'+pid).value.trim();
   const pri=document.getElementById('tp-'+pid).value;const due=document.getElementById('td-'+pid).value;
   const mx=p.tasks.length?Math.max(...p.tasks.map(t=>t.id)):0;
-  p.tasks.push({id:mx+1,text:txt,done:false,priority:pri,due,owner:own||'Gustavo'});saveState();renderProjects();
+  p.tasks.push({id:mx+1,text:txt,done:false,priority:pri,due,owner:own||'Gustavo'});saveState();refreshAll();
 }
 function addRmItem(pid){
   const p=projects.find(x=>x.id===pid);if(!p)return;
@@ -838,6 +836,7 @@ Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
       else if(a.type==='add_project'){const mx=projects.length?Math.max(...projects.map(x=>x.id)):0;const np={id:mx+1,name:a.projectName||'Nuevo',category:a.category||'Proyecto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',milestone:'',blockers:'',tasks:[],roadmap:[],notes:[],expanded:false,activeDetail:'tasks'};projects.push(np);affected.add(np.id);}
     }
     renderProjects();saveState();affected.forEach(id=>hlProj(id));addAiMsg(parsed.summary||'Listo.');
+    const t=document.getElementById('tab-today');if(t&&t.style.display!=='none')renderToday();
   }catch(err){removeThinking();addAiMsg('Error de conexión.');console.error(err);}
   btn.disabled=false;
 }
