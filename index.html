@@ -45,6 +45,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .col-lbls{display:grid;grid-template-columns:18px 1fr 90px 80px 72px 76px 50px;gap:8px;padding:0 12px;margin-bottom:4px;}
 .col-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;font-family:'DM Mono',monospace;}
 .proj-list{display:flex;flex-direction:column;gap:5px;}
+.group-header{display:flex;align-items:center;gap:8px;padding:10px 4px 4px;margin-top:4px;}
+.group-header:first-child{margin-top:0;}
+.group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-family:'DM Mono',monospace;}
+.group-line{flex:1;height:1px;background:var(--border);}
+.group-count{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
 .proj-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .proj-hdr{display:grid;grid-template-columns:18px 1fr 90px 80px 72px 76px 50px;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;transition:background .1s;}
 .proj-hdr:hover{background:var(--surface2);}
@@ -438,25 +443,52 @@ function renderProjects(){
   }).filter(p=>p.name.toLowerCase().includes(search));
   const c=document.getElementById('proj-list');if(!c)return;
   c.innerHTML='';
-  list.forEach(p=>{
-    const row=document.createElement('div');
-    row.className='proj-row'+(p.expanded?' expanded':'');
-    row.id='proj-row-'+p.id;
-    const progHtml=p.showProgress?`<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`:`<span style="font-size:10px;color:var(--text3)">—</span>`;
-    row.innerHTML=`
-      <div class="proj-hdr" onclick="toggleProj(${p.id})">
-        <span class="exp-icon">▶</span>
-        <div><div class="proj-name">${p.name}</div><div class="proj-cat-tag">${p.category}</div></div>
-        <div>${statusBadge(p.status)}</div>
-        <div>${progHtml}</div>
-        <div style="display:flex;align-items:center">${priDot(p.priority)}</div>
-        <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.owner}</div>
-        <div><button class="btn" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();editProject(${p.id})">✎</button></div>
-      </div>
-      ${p.expanded?renderDetail(p):''}`;
-    c.appendChild(row);
-  });
+
+  // Group order
+  const GROUP_ORDER=['Proyecto','Comercial','Producto','Interno'];
+  const GROUP_ICONS={'Proyecto':'⚙️','Comercial':'💼','Producto':'📦','Interno':'🏠'};
+  const useGroups = filterMode==='todos' && !search;
+
+  if(useGroups){
+    const grouped={};
+    GROUP_ORDER.forEach(g=>grouped[g]=[]);
+    list.forEach(p=>{ if(grouped[p.category]) grouped[p.category].push(p); else { if(!grouped['Interno']) grouped['Interno']=[]; grouped['Interno'].push(p); } });
+    GROUP_ORDER.forEach(cat=>{
+      const items=grouped[cat];
+      if(!items||!items.length)return;
+      // Group header
+      const gh=document.createElement('div');
+      gh.className='group-header';
+      gh.innerHTML=`<span class="group-title">${GROUP_ICONS[cat]||''} ${cat}s</span><div class="group-line"></div><span class="group-count">${items.length}</span>`;
+      c.appendChild(gh);
+      items.forEach(p=>c.appendChild(makeProjectRow(p)));
+    });
+  } else {
+    list.forEach(p=>c.appendChild(makeProjectRow(p)));
+  }
   renderSummary();
+  // Auto-refresh Mi día if it's visible
+  const todayTab=document.getElementById('tab-today');
+  if(todayTab&&todayTab.style.display!=='none') renderToday();
+}
+
+function makeProjectRow(p){
+  const row=document.createElement('div');
+  row.className='proj-row'+(p.expanded?' expanded':'');
+  row.id='proj-row-'+p.id;
+  const progHtml=p.showProgress?`<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`:`<span style="font-size:10px;color:var(--text3)">—</span>`;
+  row.innerHTML=`
+    <div class="proj-hdr" onclick="toggleProj(${p.id})">
+      <span class="exp-icon">▶</span>
+      <div><div class="proj-name">${p.name}</div><div class="proj-cat-tag">${p.status==='En riesgo'||p.status==='Bloqueado'?'⚠️ ':''} ${p.category}</div></div>
+      <div>${statusBadge(p.status)}</div>
+      <div>${progHtml}</div>
+      <div style="display:flex;align-items:center">${priDot(p.priority)}</div>
+      <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.owner}</div>
+      <div><button class="btn" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();editProject(${p.id})">✎</button></div>
+    </div>
+    ${p.expanded?renderDetail(p):''}`;
+  return row;
 }
 
 function renderDetail(p){
@@ -508,18 +540,136 @@ function renderRoadmap(p){
       <span class="rm-del" onclick="deleteRmItem(${p.id},${item.id})">×</span>
     </div>`;
   }).join('');
-  return `<div class="roadmap-wrap"><div class="roadmap-grid">
+  return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-size:10px;color:var(--text3)">Semana actual resaltada en azul · Semana 0 = hace 2 semanas</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn" style="font-size:10px;padding:3px 9px" onclick="exportRoadmapPNG(${p.id})">↓ PNG</button>
+      <button class="btn" style="font-size:10px;padding:3px 9px" onclick="exportRoadmapCSV(${p.id})">↓ CSV</button>
+    </div>
+  </div>
+  <div class="roadmap-wrap" id="rm-wrap-${p.id}"><div class="roadmap-grid" id="rm-grid-${p.id}">
     <div style="display:flex"><div style="width:130px;flex-shrink:0"></div><div class="rm-header-row">${headerCells}</div></div>
     ${rows||'<div class="empty">Sin hitos en el roadmap</div>'}
   </div></div>
-  <div class="rm-add">
+  <div class="rm-add" style="margin-top:10px">
     <input class="t-inp" id="rm-lbl-${p.id}" placeholder="Nombre del hito..." style="min-width:120px">
     <input class="t-inp" type="number" id="rm-sw-${p.id}" placeholder="Sem. inicio" min="0" max="15" style="width:90px">
     <input class="t-inp" type="number" id="rm-ew-${p.id}" placeholder="Sem. fin" min="0" max="15" style="width:90px">
     <input class="t-inp" type="color" id="rm-col-${p.id}" value="#1a4480" style="width:38px;padding:2px;cursor:pointer">
     <button class="btn-add" onclick="addRmItem(${p.id})">+ Hito</button>
-  </div>
-  <div style="font-size:10px;color:var(--text3);margin-top:6px">Semana 0 = hace 2 semanas. Semana 2 = semana actual.</div>`;
+  </div>`;
+}
+
+function exportRoadmapCSV(pid){
+  const p=projects.find(x=>x.id===pid);if(!p||!p.roadmap.length)return;
+  let csv='Hito,Semana inicio,Semana fin,Fecha inicio,Fecha fin\n';
+  p.roadmap.forEach(item=>{
+    const ds=addWeeks(WEEK0,item.startWeek);
+    const de=addWeeks(WEEK0,item.endWeek);
+    const fmt=d=>d.toLocaleDateString('es-CO');
+    csv+=`"${item.label}",${item.startWeek},${item.endWeek},"${fmt(ds)}","${fmt(de)}"\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`roadmap-${p.name.replace(/[^a-z0-9]/gi,'-').toLowerCase()}.csv`;
+  a.click();URL.revokeObjectURL(url);
+}
+
+function exportRoadmapPNG(pid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const LABEL_W=140,CELL_W=68,ROW_H=32,HEADER_H=28,PADDING=20,TITLE_H=36;
+  const totalW=LABEL_W+CELL_W*TOTAL_WEEKS+PADDING*2;
+  const totalH=TITLE_H+HEADER_H+(p.roadmap.length||1)*ROW_H+PADDING*2+20;
+
+  const canvas=document.createElement('canvas');
+  canvas.width=totalW*2;canvas.height=totalH*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+
+  // Background
+  ctx.fillStyle='#f5f4f0';
+  ctx.fillRect(0,0,totalW,totalH);
+
+  // White content area
+  ctx.fillStyle='#ffffff';
+  ctx.roundRect(PADDING/2,PADDING/2,totalW-PADDING,totalH-PADDING,8);
+  ctx.fill();
+
+  // Title
+  ctx.fillStyle='#18170f';
+  ctx.font='600 13px DM Sans, sans-serif';
+  ctx.fillText(`Roadmap — ${p.name}`,PADDING,PADDING+18);
+  ctx.fillStyle='#a39e91';
+  ctx.font='10px DM Mono, monospace';
+  ctx.fillText(new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'}),PADDING,PADDING+32);
+
+  const startY=PADDING+TITLE_H;
+
+  // Header row background
+  ctx.fillStyle='#f0ede7';
+  ctx.fillRect(PADDING,startY,totalW-PADDING*2,HEADER_H);
+
+  // Week headers
+  WEEK_LABELS.forEach((w,i)=>{
+    const x=PADDING+LABEL_W+i*CELL_W;
+    if(w.isCurrent){
+      ctx.fillStyle='#e8f0fb';
+      ctx.fillRect(x,startY,CELL_W,HEADER_H+(p.roadmap.length||1)*ROW_H);
+    }
+    ctx.fillStyle=w.isCurrent?'#1a4480':'#a39e91';
+    ctx.font=w.isCurrent?'600 9px DM Mono,monospace':'9px DM Mono,monospace';
+    ctx.textAlign='center';
+    ctx.fillText(w.label,x+CELL_W/2,startY+17);
+    // vertical line
+    ctx.strokeStyle='#ddd9d0';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,startY);ctx.lineTo(x,startY+HEADER_H+(p.roadmap.length||1)*ROW_H);ctx.stroke();
+  });
+
+  // Row separator after header
+  ctx.strokeStyle='#ddd9d0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PADDING,startY+HEADER_H);ctx.lineTo(totalW-PADDING,startY+HEADER_H);ctx.stroke();
+
+  // Roadmap rows
+  if(!p.roadmap.length){
+    ctx.fillStyle='#a39e91';ctx.font='11px DM Sans,sans-serif';ctx.textAlign='left';
+    ctx.fillText('Sin hitos en el roadmap',PADDING+LABEL_W+10,startY+HEADER_H+ROW_H/2+4);
+  } else {
+    p.roadmap.forEach((item,idx)=>{
+      const rowY=startY+HEADER_H+idx*ROW_H;
+      // Alternating row bg
+      if(idx%2===1){ctx.fillStyle='#fafaf8';ctx.fillRect(PADDING,rowY,totalW-PADDING*2,ROW_H);}
+      // Row separator
+      ctx.strokeStyle='#ddd9d0';ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(PADDING,rowY+ROW_H);ctx.lineTo(totalW-PADDING,rowY+ROW_H);ctx.stroke();
+      // Label
+      ctx.fillStyle='#6b6656';ctx.font='11px DM Sans,sans-serif';ctx.textAlign='left';
+      const lbl=item.label.length>17?item.label.slice(0,16)+'…':item.label;
+      ctx.fillText(lbl,PADDING+4,rowY+ROW_H/2+4);
+      // Bar
+      const s=Math.max(0,item.startWeek),e=Math.min(TOTAL_WEEKS-1,item.endWeek);
+      const barX=PADDING+LABEL_W+s*CELL_W+2;
+      const barW=(e-s+1)*CELL_W-4;
+      const barY=rowY+6;const barH=ROW_H-12;
+      ctx.fillStyle=item.color;
+      ctx.beginPath();ctx.roundRect(barX,barY,barW,barH,3);ctx.fill();
+      // Bar label
+      if(barW>30){
+        ctx.fillStyle='#ffffff';ctx.font='600 9px DM Sans,sans-serif';ctx.textAlign='left';
+        ctx.fillText(lbl,barX+6,barY+barH/2+3);
+      }
+    });
+  }
+
+  // Border
+  ctx.strokeStyle='#ddd9d0';ctx.lineWidth=1;
+  ctx.strokeRect(PADDING/2,PADDING/2,totalW-PADDING,totalH-PADDING);
+
+  // Download
+  const url=canvas.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=url;a.download=`roadmap-${p.name.replace(/[^a-z0-9]/gi,'-').toLowerCase()}.png`;
+  a.click();
 }
 
 function renderNotes(p){
@@ -692,26 +842,79 @@ Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
   btn.disabled=false;
 }
 
-function saveState() {
-  try {
-    localStorage.setItem('gestor_tuboleta_v3', JSON.stringify(projects));
-  } catch(e) { console.warn('No se pudo guardar:', e); }
+// ── SUPABASE SYNC ──────────────────────────────────────────────
+const SB_URL = 'https://dmyzfttezwbcrqoyumst.supabase.co';
+const SB_KEY = 'sb_publishable_O-OPWsJQyJ2u9TxT3yiIgQ_rcqO9LZL';
+const SB_HEADERS = { 'Content-Type':'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
+
+let sbRowId = null;  // UUID of the single row we use
+let saveTimer = null;
+
+function showSyncStatus(msg, color='var(--text3)'){
+  let el=document.getElementById('sync-status');
+  if(!el){el=document.createElement('div');el.id='sync-status';el.style.cssText='position:fixed;bottom:12px;right:12px;font-size:10px;font-family:DM Mono,monospace;padding:4px 10px;border-radius:20px;background:var(--surface);border:1px solid var(--border);z-index:999;transition:opacity .4s;';document.body.appendChild(el);}
+  el.style.color=color;el.style.opacity='1';el.textContent=msg;
+  clearTimeout(el._hide);el._hide=setTimeout(()=>el.style.opacity='0',2500);
 }
 
-function loadState() {
-  try {
-    const saved = localStorage.getItem('gestor_tuboleta_v3');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        projects = parsed;
+async function loadState(){
+  showSyncStatus('Cargando…');
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/projects?select=id,data&limit=1`,{headers:SB_HEADERS});
+    const rows=await res.json();
+    if(rows&&rows.length>0){
+      sbRowId=rows[0].id;
+      const data=rows[0].data;
+      if(Array.isArray(data)&&data.length>0){
+        projects=data;
+        showSyncStatus('✓ Sincronizado','var(--green)');
+      } else {
+        // Row exists but empty — save default projects
+        await pushState();
+        showSyncStatus('✓ Datos iniciales guardados','var(--green)');
       }
+    } else {
+      // No rows at all — insert one
+      await pushState();
+      showSyncStatus('✓ Base de datos lista','var(--green)');
     }
-  } catch(e) { console.warn('No se pudo cargar:', e); }
+  }catch(e){
+    console.warn('Supabase load error:',e);
+    showSyncStatus('⚠ Sin conexión — modo local','var(--amber)');
+    // Fallback to localStorage
+    try{const s=localStorage.getItem('gestor_tuboleta_v3');if(s){const p=JSON.parse(s);if(Array.isArray(p)&&p.length>0)projects=p;}}catch(e2){}
+  }
+  renderProjects();
+}
+
+async function pushState(){
+  try{
+    const body=JSON.stringify({data: projects});
+    if(sbRowId){
+      await fetch(`${SB_URL}/rest/v1/projects?id=eq.${sbRowId}`,{method:'PATCH',headers:{...SB_HEADERS,'Prefer':'return=minimal'},body});
+    } else {
+      const res=await fetch(`${SB_URL}/rest/v1/projects`,{method:'POST',headers:{...SB_HEADERS,'Prefer':'return=representation'},body});
+      const rows=await res.json();
+      if(rows&&rows[0])sbRowId=rows[0].id;
+    }
+    // Also keep localStorage as backup
+    localStorage.setItem('gestor_tuboleta_v3',JSON.stringify(projects));
+  }catch(e){
+    console.warn('Supabase save error:',e);
+    localStorage.setItem('gestor_tuboleta_v3',JSON.stringify(projects));
+  }
+}
+
+function saveState(){
+  showSyncStatus('Guardando…');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    await pushState();
+    showSyncStatus('✓ Guardado','var(--green)');
+  }, 600); // debounce 600ms so rapid changes batch together
 }
 
 loadState();
-renderProjects();
 </script>
 </body>
 </html>
