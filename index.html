@@ -672,7 +672,7 @@ Responde ÚNICAMENTE JSON válido sin markdown:
 {"actions":[{"type":"update_project"|"add_task"|"add_project"|"add_note"|"add_roadmap_item"|"update_milestone"|"update_blockers","projectId":number,"field":string,"value":any,"taskText":string,"taskPriority":"Alta"|"Media"|"Baja","taskDue":string,"taskOwner":string,"noteTitle":string,"noteBody":string,"rmLabel":string,"rmStartWeek":number,"rmEndWeek":number,"rmColor":string,"projectName":string,"category":string}],"summary":"Resumen en español"}
 Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
   try{
-    const res=await fetch('/.netlify/functions/claude-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,system:sys,messages:[{role:'user',content:txt}]})});
+    const res=await fetch('/.netlify/functions/claude-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:sys,messages:[{role:'user',content:txt}]})});
     const data=await res.json();removeThinking();
     const raw=data.content.map(i=>i.text||'').join('');
     let parsed;try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){addAiMsg('No pude interpretar la respuesta.');btn.disabled=false;return;}
