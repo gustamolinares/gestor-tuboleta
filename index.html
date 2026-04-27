@@ -543,15 +543,15 @@ function renderNotes(p){
 }
 
 function toggleProj(id){const p=projects.find(x=>x.id===id);if(p)p.expanded=!p.expanded;renderProjects();}
-function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;renderProjects();}
-function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);renderProjects();}
+function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();renderProjects();}
+function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);saveState();renderProjects();}
 function addTask(pid){
   const p=projects.find(x=>x.id===pid);if(!p)return;
   const inp=document.getElementById('ti-'+pid);const txt=inp.value.trim();if(!txt)return;
   const own=document.getElementById('to-'+pid).value.trim();
   const pri=document.getElementById('tp-'+pid).value;const due=document.getElementById('td-'+pid).value;
   const mx=p.tasks.length?Math.max(...p.tasks.map(t=>t.id)):0;
-  p.tasks.push({id:mx+1,text:txt,done:false,priority:pri,due,owner:own||'Gustavo'});renderProjects();
+  p.tasks.push({id:mx+1,text:txt,done:false,priority:pri,due,owner:own||'Gustavo'});saveState();renderProjects();
 }
 function addRmItem(pid){
   const p=projects.find(x=>x.id===pid);if(!p)return;
@@ -560,17 +560,17 @@ function addRmItem(pid){
   const ew=parseInt(document.getElementById('rm-ew-'+pid).value)||sw;
   const col=document.getElementById('rm-col-'+pid).value;
   const mx=p.roadmap.length?Math.max(...p.roadmap.map(r=>r.id)):0;
-  p.roadmap.push({id:mx+1,label:lbl,startWeek:sw,endWeek:ew,color:col});renderProjects();
+  p.roadmap.push({id:mx+1,label:lbl,startWeek:sw,endWeek:ew,color:col});saveState();renderProjects();
 }
-function deleteRmItem(pid,rid){const p=projects.find(x=>x.id===pid);if(!p)return;p.roadmap=p.roadmap.filter(x=>x.id!==rid);renderProjects();}
+function deleteRmItem(pid,rid){const p=projects.find(x=>x.id===pid);if(!p)return;p.roadmap=p.roadmap.filter(x=>x.id!==rid);saveState();renderProjects();}
 function addNote(pid){
   const p=projects.find(x=>x.id===pid);if(!p)return;
   const title=document.getElementById('nt-'+pid).value.trim()||'Nota';
   const body=document.getElementById('nb-'+pid).value.trim();if(!body)return;
   const mx=p.notes.length?Math.max(...p.notes.map(n=>n.id)):0;
-  p.notes.unshift({id:mx+1,title,date:new Date().toISOString().slice(0,10),body});renderProjects();
+  p.notes.unshift({id:mx+1,title,date:new Date().toISOString().slice(0,10),body});saveState();renderProjects();
 }
-function deleteNote(pid,nid){const p=projects.find(x=>x.id===pid);if(!p)return;p.notes=p.notes.filter(x=>x.id!==nid);renderProjects();}
+function deleteNote(pid,nid){const p=projects.find(x=>x.id===pid);if(!p)return;p.notes=p.notes.filter(x=>x.id!==nid);saveState();renderProjects();}
 function setFilter(m,el){filterMode=m;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProjects();}
 
 function switchTab(tab,el){
@@ -623,7 +623,7 @@ function renderToday(){
     <div class="today-sec"><div class="today-sec-hdr"><span>Esta semana — alta prioridad</span><span style="font-weight:400">${semana.length}</span></div>${ri(semana,'Sin tareas urgentes')}</div>
     <div class="today-sec"><div class="today-sec-hdr"><span>Resto de tareas pendientes</span><span style="font-weight:400">${resto.length}</span></div>${ri(resto,'Sin más tareas')}</div>`;
 }
-function toggleTaskG(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;renderToday();}
+function toggleTaskG(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();renderToday();}
 
 function copyReport(){
   let txt='REPORTE DE ESTADO — TUBOLETA / BEATHUB\n'+new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'\n\n';
@@ -650,7 +650,7 @@ function saveProject(){
   const data={name,category:document.getElementById('f-cat').value,status:document.getElementById('f-status').value,progress:parseInt(document.getElementById('f-progress').value)||0,showProgress:showProgToggle,priority:document.getElementById('f-priority').value,owner:document.getElementById('f-owner').value.trim(),milestone:document.getElementById('f-milestone').value.trim(),blockers:document.getElementById('f-blockers').value.trim()};
   if(editingId){Object.assign(projects.find(x=>x.id===editingId),data);}
   else{const mx=projects.length?Math.max(...projects.map(p=>p.id)):0;projects.push({id:mx+1,tasks:[],roadmap:[],notes:[],expanded:false,activeDetail:'tasks',...data});}
-  closeModal();renderProjects();
+  closeModal();saveState();renderProjects();
 }
 document.getElementById('modal-ov').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
@@ -687,10 +687,30 @@ Si es nota de reunión: crea una note Y extrae tareas. Responde en español.`;
       else if(a.type==='update_blockers'&&p){p.blockers=a.value;affected.add(p.id);}
       else if(a.type==='add_project'){const mx=projects.length?Math.max(...projects.map(x=>x.id)):0;const np={id:mx+1,name:a.projectName||'Nuevo',category:a.category||'Proyecto',status:'En curso',progress:0,showProgress:false,priority:'Media',owner:'Gustavo',milestone:'',blockers:'',tasks:[],roadmap:[],notes:[],expanded:false,activeDetail:'tasks'};projects.push(np);affected.add(np.id);}
     }
-    renderProjects();affected.forEach(id=>hlProj(id));addAiMsg(parsed.summary||'Listo.');
+    renderProjects();saveState();affected.forEach(id=>hlProj(id));addAiMsg(parsed.summary||'Listo.');
   }catch(err){removeThinking();addAiMsg('Error de conexión.');console.error(err);}
   btn.disabled=false;
 }
+
+function saveState() {
+  try {
+    localStorage.setItem('gestor_tuboleta_v3', JSON.stringify(projects));
+  } catch(e) { console.warn('No se pudo guardar:', e); }
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('gestor_tuboleta_v3');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        projects = parsed;
+      }
+    }
+  } catch(e) { console.warn('No se pudo cargar:', e); }
+}
+
+loadState();
 renderProjects();
 </script>
 </body>
