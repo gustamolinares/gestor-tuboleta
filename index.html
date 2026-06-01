@@ -120,6 +120,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .rep-table tr:last-child td{border-bottom:none;}
 .rep-table tr:hover td{background:var(--surface2);}
 .today-sec{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+/* KANBAN */
+.kb-toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;}
+.kb-board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;}
+.kb-col{background:var(--surface2);border-radius:10px;padding:10px;min-height:200px;transition:background .15s;}
+.kb-col.drag-over{background:#e8f0fb;}
+.kb-col-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px;}
+.kb-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-family:'DM Mono',monospace;}
+.kb-col-count{font-size:10px;color:var(--text3);background:var(--surface);padding:1px 7px;border-radius:10px;font-family:'DM Mono',monospace;}
+.kb-card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 10px;margin-bottom:7px;cursor:grab;transition:box-shadow .15s,transform .15s;user-select:none;}
+.kb-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.kb-card.dragging{opacity:.5;transform:scale(.97);}
+.kb-card-text{font-size:12px;font-weight:500;line-height:1.4;margin-bottom:6px;}
+.kb-card-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.kb-card-proj{font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 6px;border-radius:10px;}
+.kb-card-owner{font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:10px;}
+.kb-card-due{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
+.kb-card-due.overdue{background:var(--red-bg);color:var(--red);}
+.kb-card-due.today{background:#fff3cd;color:#92620a;}
+.kb-card-due.soon{background:var(--blue-bg);color:var(--blue);}
+.kb-card-due.normal{background:var(--gray-bg);color:var(--gray);}
+.kb-empty{text-align:center;color:var(--text3);font-size:11px;padding:20px 10px;border:2px dashed var(--border);border-radius:6px;}
 .today-sec-hdr{padding:8px 13px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);display:flex;justify-content:space-between;font-family:'DM Mono',monospace;}
 .today-task{display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid var(--border);font-size:11px;}
 .today-task:last-child{border-bottom:none;}
@@ -181,6 +202,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 <div class="tabs">
   <div class="tab active" onclick="switchTab('projects',this)">Proyectos</div>
   <div class="tab" onclick="switchTab('today',this)">Mi día</div>
+  <div class="tab" onclick="switchTab('kanban',this)">Kanban</div>
   <div class="tab" onclick="switchTab('report',this)">Reporte</div>
 </div>
 <div class="body">
@@ -203,6 +225,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
       <div class="proj-list" id="proj-list"></div>
     </div>
     <div id="tab-today" style="display:none"></div>
+    <div id="tab-kanban" style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
   </div>
   <div class="panel-chat">
@@ -690,7 +713,7 @@ function renderNotes(p){
 }
 
 function toggleProj(id){const p=projects.find(x=>x.id===id);if(p)p.expanded=!p.expanded;renderProjects();}
-function refreshAll(){renderProjects();const t=document.getElementById('tab-today');if(t&&t.style.display!=='none')renderToday();}
+function refreshAll(){renderProjects();const t=document.getElementById('tab-today');if(t&&t.style.display!=='none')renderToday();const k=document.getElementById('tab-kanban');if(k&&k.style.display!=='none')renderKanban();}
 function toggleTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();refreshAll();}
 function deleteTask(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;p.tasks=p.tasks.filter(x=>x.id!==tid);saveState();refreshAll();}
 function addTask(pid){
@@ -722,12 +745,13 @@ function deleteNote(pid,nid){const p=projects.find(x=>x.id===pid);if(!p)return;p
 function setFilter(m,el){filterMode=m;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProjects();}
 
 function switchTab(tab,el){
-  ['projects','today','report'].forEach(t=>{const e=document.getElementById('tab-'+t);if(e)e.style.display='none';});
+  ['projects','today','kanban','report'].forEach(t=>{const e=document.getElementById('tab-'+t);if(e)e.style.display='none';});
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   const target=document.getElementById('tab-'+tab);if(target)target.style.display='';
   el.classList.add('active');
   if(tab==='report')renderReport();
   if(tab==='today')renderToday();
+  if(tab==='kanban')renderKanban();
 }
 
 function renderReport(){
@@ -752,12 +776,13 @@ function renderReport(){
 
 function renderToday(ownerFilter='todas'){
   const tab=document.getElementById('tab-today');
-  const hoy=[],urgente=[],proxima=[],backlog=[];
+  const hoy=[],urgente=[],proxima=[],backlog=[],atrasadas=[];
   projects.forEach(p=>p.tasks.filter(t=>!t.done).forEach(t=>{
     const item={...t,projName:p.name,projId:p.id,projStatus:p.status};
     if(ownerFilter==='mias'&&t.owner&&t.owner!=='Gustavo') return;
     if(ownerFilter==='delegadas'&&(!t.owner||t.owner==='Gustavo')) return;
-    if(t.due==='Hoy') hoy.push(item);
+    if(isOverdue(t.due)&&t.due!=='Hoy') atrasadas.push(item);
+    else if(t.due==='Hoy') hoy.push(item);
     else if(t.priority==='Alta'&&(t.due==='Esta semana'||!t.due)) urgente.push(item);
     else if(t.due==='Esta semana'||t.due==='Próxima semana') proxima.push(item);
     else backlog.push(item);
@@ -765,22 +790,24 @@ function renderToday(ownerFilter='todas'){
 
   const statusOrder={'Bloqueado':0,'En riesgo':1,'En curso':2,'Planeado':3,'Completado':4};
   urgente.sort((a,b)=>(statusOrder[a.projStatus]||2)-(statusOrder[b.projStatus]||2));
-  const totalPending=hoy.length+urgente.length+proxima.length+backlog.length;
+  const totalPending=atrasadas.length+hoy.length+urgente.length+proxima.length+backlog.length;
   const today=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'});
 
-  const taskRow=(t,accentColor)=>`
-    <div class="today-task" style="border-left:3px solid ${accentColor}">
+  const taskRow=(t,accentColor)=>{
+    const due=getDueLabel(t.due);
+    return `<div class="today-task" style="border-left:3px solid ${accentColor}">
       <div class="task-chk" onclick="toggleTaskG(${t.projId},${t.id})" style="cursor:pointer;width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border2);font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;color:var(--text);line-height:1.3">${t.text}</div>
         <div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center">
           <span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 7px;border-radius:10px">${t.projName}</span>
           ${t.owner&&t.owner!=='Gustavo'?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:10px">👤 ${t.owner}</span>`:'<span style="font-size:10px;color:var(--green);background:var(--green-bg);padding:1px 6px;border-radius:10px">Yo</span>'}
-          ${t.due?`<span style="font-size:10px;color:var(--text3)">${t.due}</span>`:''}
+          ${due?`<span class="kb-card-due ${due.cls}" style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600">${due.label}</span>`:''}
         </div>
       </div>
       <span class="badge ${t.priority==='Alta'?'br':t.priority==='Media'?'ba':'bgr'}" style="font-size:9px;flex-shrink:0">${t.priority}</span>
     </div>`;
+  };
 
   const section=(title,icon,items,emptyMsg,color,bg)=>`
     <div class="today-sec" style="border-left:3px solid ${color}">
@@ -791,13 +818,9 @@ function renderToday(ownerFilter='todas'){
       ${items.length?items.map(t=>taskRow(t,color)).join(''):`<div class="empty" style="padding:12px 16px;color:var(--text3);font-size:11px">${emptyMsg} ✓</div>`}
     </div>`;
 
-  const filters=[
-    {k:'todas',label:'Todas'},
-    {k:'mias',label:'Solo mías'},
-    {k:'delegadas',label:'Delegadas'},
-  ];
+  const filters=[{k:'todas',label:'Todas'},{k:'mias',label:'Solo mías'},{k:'delegadas',label:'Delegadas'}];
   const filterBar=`<div style="display:flex;gap:6px">
-    ${filters.map(f=>`<button onclick="renderToday('${f.k}')" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:${ownerFilter===f.k?'var(--accent)':'var(--surface)'};color:${ownerFilter===f.k?'#fff':'var(--text2)'};font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s">${f.label}</button>`).join('')}
+    ${filters.map(f=>`<button onclick="renderToday('${f.k}')" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:${ownerFilter===f.k?'var(--accent)':'var(--surface)'};color:${ownerFilter===f.k?'#fff':'var(--text2)'};font-size:11px;cursor:pointer;font-family:inherit">${f.label}</button>`).join('')}
   </div>`;
 
   tab.innerHTML=`
@@ -808,12 +831,143 @@ function renderToday(ownerFilter='todas'){
       </div>
       ${filterBar}
     </div>
+    ${atrasadas.length?section('Atrasadas','🚨',atrasadas,'Sin tareas atrasadas','#6b21a8','#f5f3ff'):''}
     ${section('Para hoy','🔴',hoy,'Nada para hoy','#9b2335','#fdf0f0')}
     ${section('Alta prioridad','🟠',urgente,'Sin tareas de alta prioridad','#92620a','#fef3e2')}
     ${section('Esta semana','🔵',proxima,'Sin tareas para esta semana','#1a4480','#e8f0fb')}
     ${section('Backlog','⚪',backlog,'Sin tareas en backlog','var(--border2)','var(--surface2)')}`;
 }
 function toggleTaskG(pid,tid){const p=projects.find(x=>x.id===pid);if(!p)return;const t=p.tasks.find(x=>x.id===tid);if(t)t.done=!t.done;saveState();renderToday();}
+
+// ── DYNAMIC DATE HELPERS ──────────────────────────────────────
+function getDueLabel(due){
+  if(!due) return null;
+  const now=new Date(); now.setHours(0,0,0,0);
+  const mon=getMonday(now);
+  const nextMon=addWeeks(mon,1);
+  const nextMon2=addWeeks(mon,2);
+  if(due==='Hoy') return {label:'Hoy',cls:'today'};
+  if(due==='Esta semana') return {label:'Esta semana',cls:'soon'};
+  if(due==='Próxima semana') return {label:'Próx. semana',cls:'normal'};
+  // ISO date string
+  const d=new Date(due); d.setHours(0,0,0,0);
+  if(d<now) return {label:'Atrasado',cls:'overdue'};
+  if(d.getTime()===now.getTime()) return {label:'Hoy',cls:'today'};
+  const diff=Math.ceil((d-now)/(864e5));
+  if(diff<=7) return {label:`${diff}d`,cls:'soon'};
+  return {label:d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'}),cls:'normal'};
+}
+
+function isOverdue(due){
+  if(!due) return false;
+  const now=new Date();now.setHours(0,0,0,0);
+  if(due==='Hoy'){const d=new Date();d.setHours(0,0,0,0);return d<now;}
+  if(due==='Esta semana'||due==='Próxima semana') return false;
+  const d=new Date(due);d.setHours(0,0,0,0);
+  return d<now;
+}
+
+// ── KANBAN ───────────────────────────────────────────────────
+const KB_COLS=[
+  {id:'pendiente',label:'Pendiente',icon:'○',color:'var(--gray)'},
+  {id:'en_progreso',label:'En progreso',icon:'◑',color:'var(--blue)'},
+  {id:'bloqueado',label:'Bloqueado',icon:'✕',color:'var(--red)'},
+  {id:'listo',label:'Listo',icon:'✓',color:'var(--green)'},
+];
+
+let kbProjectFilter='todos';
+let dragTask=null; // {projId, taskId}
+
+function getAllTasks(){
+  const tasks=[];
+  projects.forEach(p=>{
+    if(kbProjectFilter!=='todos'&&p.id!==parseInt(kbProjectFilter)) return;
+    p.tasks.forEach(t=>{
+      tasks.push({...t, projId:p.id, projName:p.name,
+        kbStatus: t.kbStatus||(t.done?'listo':'pendiente')
+      });
+    });
+  });
+  return tasks;
+}
+
+function setTaskKbStatus(projId,taskId,status){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  const t=p.tasks.find(x=>x.id===taskId);if(!t)return;
+  t.kbStatus=status;
+  if(status==='listo') t.done=true;
+  else t.done=false;
+  saveState();refreshAll();
+}
+
+function renderKanban(projFilter){
+  if(projFilter!==undefined) kbProjectFilter=projFilter;
+  const tab=document.getElementById('tab-kanban');if(!tab)return;
+  const allTasks=getAllTasks();
+  const overdueCount=allTasks.filter(t=>!t.done&&isOverdue(t.due)).length;
+
+  const projOptions=`<option value="todos">Todos los proyectos</option>`+
+    projects.map(p=>`<option value="${p.id}"${kbProjectFilter==p.id?' selected':''}>${p.name}</option>`).join('');
+
+  const cols=KB_COLS.map(col=>{
+    const colTasks=allTasks.filter(t=>{
+      const st=t.kbStatus||(t.done?'listo':'pendiente');
+      return st===col.id;
+    });
+    const cards=colTasks.length?colTasks.map(t=>{
+      const due=getDueLabel(t.due);
+      const overdue=!t.done&&isOverdue(t.due);
+      return `<div class="kb-card${overdue?' style="border-color:#9b2335"':''}"
+        draggable="true"
+        ondragstart="kbDragStart(event,${t.projId},${t.id})"
+        style="border-left:3px solid ${col.color}${overdue?';border:1px solid #9b2335;border-left:3px solid #9b2335':''}">
+        ${overdue?'<div style="font-size:10px;color:var(--red);font-weight:600;margin-bottom:4px">⚠ Atrasado</div>':''}
+        <div class="kb-card-text">${t.text}</div>
+        <div class="kb-card-meta">
+          <span class="kb-card-proj">${t.projName}</span>
+          ${t.owner&&t.owner!=='Gustavo'?`<span class="kb-card-owner">${t.owner}</span>`:''}
+          ${due?`<span class="kb-card-due ${due.cls}">${due.label}</span>`:''}
+          <span class="badge ${t.priority==='Alta'?'br':t.priority==='Media'?'ba':'bgr'}" style="font-size:9px">${t.priority}</span>
+        </div>
+        <div style="margin-top:7px;display:flex;gap:4px;flex-wrap:wrap">
+          ${KB_COLS.filter(c=>c.id!==col.id).map(c=>`<button onclick="setTaskKbStatus(${t.projId},${t.id},'${c.id}')" style="padding:2px 7px;font-size:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-family:inherit;color:var(--text2)" title="Mover a ${c.label}">${c.icon} ${c.label}</button>`).join('')}
+        </div>
+      </div>`;
+    }).join(''):`<div class="kb-empty">Sin tareas</div>`;
+
+    return `<div class="kb-col" id="kb-col-${col.id}"
+      ondragover="event.preventDefault();document.getElementById('kb-col-${col.id}').classList.add('drag-over')"
+      ondragleave="document.getElementById('kb-col-${col.id}').classList.remove('drag-over')"
+      ondrop="kbDrop(event,'${col.id}')">
+      <div class="kb-col-hdr">
+        <span class="kb-col-title" style="color:${col.color}">${col.icon} ${col.label}</span>
+        <span class="kb-col-count">${colTasks.length}</span>
+      </div>
+      ${cards}
+    </div>`;
+  }).join('');
+
+  tab.innerHTML=`
+    <div class="kb-toolbar">
+      <select onchange="renderKanban(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">${projOptions}</select>
+      ${overdueCount>0?`<span class="badge br">⚠ ${overdueCount} atrasada${overdueCount!==1?'s':''}</span>`:''}
+      <span style="font-size:11px;color:var(--text3);margin-left:auto">Arrastra las tarjetas o usa los botones para mover</span>
+    </div>
+    <div class="kb-board">${cols}</div>`;
+}
+
+function kbDragStart(e,projId,taskId){
+  dragTask={projId,taskId};
+  e.dataTransfer.effectAllowed='move';
+}
+function kbDrop(e,colId){
+  e.preventDefault();
+  document.querySelectorAll('.kb-col').forEach(c=>c.classList.remove('drag-over'));
+  if(!dragTask)return;
+  setTaskKbStatus(dragTask.projId,dragTask.taskId,colId);
+  dragTask=null;
+  renderKanban();
+}
 
 function copyReport(){
   let txt='REPORTE DE ESTADO — TUBOLETA / BEATHUB\n'+new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'\n\n';
