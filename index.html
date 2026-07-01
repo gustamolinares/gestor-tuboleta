@@ -50,7 +50,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-family:'DM Mono',monospace;}
 .group-line{flex:1;height:1px;background:var(--border);}
 .group-count{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
-.proj-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.proj-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:box-shadow .15s,transform .15s;}
+.proj-row.drag-src{opacity:.4;transform:scale(.98);}
+.proj-row.drag-target{border:2px dashed var(--blue);background:var(--blue-bg);}
+.drag-handle{cursor:grab;color:var(--text3);font-size:13px;padding:0 4px;display:flex;align-items:center;user-select:none;flex-shrink:0;}
+.drag-handle:hover{color:var(--text2);}
+.drag-handle:active{cursor:grabbing;}
+.live-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--green);font-family:'DM Mono',monospace;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
 .proj-hdr{display:grid;grid-template-columns:18px 1fr 90px 80px 72px 76px 50px;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;transition:background .1s;}
 .proj-hdr:hover{background:var(--surface2);}
 .exp-icon{color:var(--text3);font-size:8px;transition:transform .2s;user-select:none;}
@@ -196,6 +203,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <span class="logo">Tuboleta · BeatHub</span>
     <span style="color:var(--border)">|</span>
     <span class="hdr-title">Gestor de Proyectos</span>
+    <span class="live-badge" id="live-badge" style="display:none"><span class="live-dot"></span>En vivo</span>
   </div>
   <button class="btn-new" onclick="openModal()">+ Proyecto</button>
 </div>
@@ -217,8 +225,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <button class="filter-btn" onclick="setFilter('Comercial',this)">Comercial</button>
         <button class="filter-btn" onclick="setFilter('Alta',this)">Alta prioridad</button>
       </div>
-      <div class="col-lbls">
-        <span></span><span class="col-lbl">Nombre</span><span class="col-lbl">Estado</span>
+      <div class="col-lbls" style="grid-template-columns:20px 18px 1fr 90px 80px 72px 76px 50px">
+        <span></span><span></span><span class="col-lbl">Nombre</span><span class="col-lbl">Estado</span>
         <span class="col-lbl">Progreso</span><span class="col-lbl">Prioridad</span>
         <span class="col-lbl">Dueño</span><span class="col-lbl"></span>
       </div>
@@ -457,6 +465,8 @@ function renderSummary(){
     <div class="sum-card"><div class="sum-num" style="color:var(--red)">${pt}</div><div class="sum-lbl">Tareas pend.</div></div>`;
 }
 
+let dragProjId=null;
+
 function renderProjects(){
   const search=(document.getElementById('search-inp')||{value:''}).value.toLowerCase();
   let list=projects.filter(p=>{
@@ -467,7 +477,6 @@ function renderProjects(){
   const c=document.getElementById('proj-list');if(!c)return;
   c.innerHTML='';
 
-  // Group order
   const GROUP_ORDER=['Proyecto','Comercial','Producto','Interno'];
   const GROUP_ICONS={'Proyecto':'⚙️','Comercial':'💼','Producto':'📦','Interno':'🏠'};
   const useGroups = filterMode==='todos' && !search;
@@ -475,11 +484,10 @@ function renderProjects(){
   if(useGroups){
     const grouped={};
     GROUP_ORDER.forEach(g=>grouped[g]=[]);
-    list.forEach(p=>{ if(grouped[p.category]) grouped[p.category].push(p); else { if(!grouped['Interno']) grouped['Interno']=[]; grouped['Interno'].push(p); } });
+    list.forEach(p=>{ if(grouped[p.category]) grouped[p.category].push(p); else grouped['Interno'].push(p); });
     GROUP_ORDER.forEach(cat=>{
       const items=grouped[cat];
       if(!items||!items.length)return;
-      // Group header
       const gh=document.createElement('div');
       gh.className='group-header';
       gh.innerHTML=`<span class="group-title">${GROUP_ICONS[cat]||''} ${cat}s</span><div class="group-line"></div><span class="group-count">${items.length}</span>`;
@@ -496,11 +504,48 @@ function makeProjectRow(p){
   const row=document.createElement('div');
   row.className='proj-row'+(p.expanded?' expanded':'');
   row.id='proj-row-'+p.id;
-  const progHtml=p.showProgress?`<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`:`<span style="font-size:10px;color:var(--text3)">—</span>`;
+  row.draggable=true;
+  row.addEventListener('dragstart',e=>{
+    dragProjId=p.id;
+    row.classList.add('drag-src');
+    e.dataTransfer.effectAllowed='move';
+  });
+  row.addEventListener('dragend',()=>{
+    row.classList.remove('drag-src');
+    document.querySelectorAll('.proj-row').forEach(r=>r.classList.remove('drag-target'));
+  });
+  row.addEventListener('dragover',e=>{
+    e.preventDefault();
+    if(dragProjId&&dragProjId!==p.id){
+      document.querySelectorAll('.proj-row').forEach(r=>r.classList.remove('drag-target'));
+      row.classList.add('drag-target');
+    }
+  });
+  row.addEventListener('drop',e=>{
+    e.preventDefault();
+    row.classList.remove('drag-target');
+    if(!dragProjId||dragProjId===p.id)return;
+    const fromIdx=projects.findIndex(x=>x.id===dragProjId);
+    const toIdx=projects.findIndex(x=>x.id===p.id);
+    if(fromIdx<0||toIdx<0)return;
+    const [moved]=projects.splice(fromIdx,1);
+    projects.splice(toIdx,0,moved);
+    saveState();renderProjects();
+    dragProjId=null;
+  });
+
+  const progHtml=p.showProgress
+    ?`<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.progress}%;background:${progColor(p.progress)}"></div></div><span class="prog-lbl">${p.progress}%</span></div>`
+    :`<span style="font-size:10px;color:var(--text3)">—</span>`;
+
+  const overdueCount=p.tasks.filter(t=>!t.done&&isOverdue(t.due)).length;
+  const nameHtml=`<div class="proj-name">${p.name}${overdueCount?` <span style="font-size:9px;color:var(--red);font-weight:700;background:var(--red-bg);padding:1px 5px;border-radius:10px">⚠ ${overdueCount} atras.</span>`:''}</div><div class="proj-cat-tag">${p.category}</div>`;
+
   row.innerHTML=`
-    <div class="proj-hdr" onclick="toggleProj(${p.id})">
+    <div class="proj-hdr" style="grid-template-columns:20px 18px 1fr 90px 80px 72px 76px 50px" onclick="toggleProj(${p.id})">
+      <span class="drag-handle" onclick="event.stopPropagation()" draggable="false">⠿</span>
       <span class="exp-icon">▶</span>
-      <div><div class="proj-name">${p.name}</div><div class="proj-cat-tag">${p.status==='En riesgo'||p.status==='Bloqueado'?'⚠️ ':''} ${p.category}</div></div>
+      <div>${nameHtml}</div>
       <div>${statusBadge(p.status)}</div>
       <div>${progHtml}</div>
       <div style="display:flex;align-items:center">${priDot(p.priority)}</div>
@@ -1049,8 +1094,10 @@ const SB_URL = 'https://dmyzfttezwbcrqoyumst.supabase.co';
 const SB_KEY = 'sb_publishable_O-OPWsJQyJ2u9TxT3yiIgQ_rcqO9LZL';
 const SB_HEADERS = { 'Content-Type':'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
 
-let sbRowId = null;  // UUID of the single row we use
+let sbRowId = null;
 let saveTimer = null;
+let lastSyncedAt = null;
+let pollInterval = null;
 
 function showSyncStatus(msg, color='var(--text3)'){
   let el=document.getElementById('sync-status');
@@ -1059,47 +1106,61 @@ function showSyncStatus(msg, color='var(--text3)'){
   clearTimeout(el._hide);el._hide=setTimeout(()=>el.style.opacity='0',2500);
 }
 
-async function loadState(){
-  showSyncStatus('Cargando…');
+async function loadState(silent=false){
+  if(!silent) showSyncStatus('Cargando…');
   try{
-    const res=await fetch(`${SB_URL}/rest/v1/projects?select=id,data&limit=1`,{headers:SB_HEADERS});
+    const res=await fetch(`${SB_URL}/rest/v1/projects?select=id,data,updated_at&limit=1`,{headers:SB_HEADERS});
     const rows=await res.json();
     if(rows&&rows.length>0){
       sbRowId=rows[0].id;
+      const serverTime=rows[0].updated_at;
       const data=rows[0].data;
       if(Array.isArray(data)&&data.length>0){
+        // If silent poll, only update if server has newer data
+        if(silent&&lastSyncedAt&&serverTime===lastSyncedAt) return;
+        if(silent&&lastSyncedAt&&serverTime!==lastSyncedAt){
+          projects=data;
+          lastSyncedAt=serverTime;
+          refreshAll();
+          showSyncStatus('↻ Actualizado por otro dispositivo','var(--blue)');
+          return;
+        }
         projects=data;
-        showSyncStatus('✓ Sincronizado','var(--green)');
+        lastSyncedAt=serverTime;
+        if(!silent) showSyncStatus('✓ Sincronizado','var(--green)');
       } else {
-        // Row exists but empty — save default projects
         await pushState();
-        showSyncStatus('✓ Datos iniciales guardados','var(--green)');
+        if(!silent) showSyncStatus('✓ Datos iniciales guardados','var(--green)');
       }
     } else {
-      // No rows at all — insert one
       await pushState();
-      showSyncStatus('✓ Base de datos lista','var(--green)');
+      if(!silent) showSyncStatus('✓ Base de datos lista','var(--green)');
     }
+    // Show live badge
+    const badge=document.getElementById('live-badge');
+    if(badge) badge.style.display='inline-flex';
   }catch(e){
     console.warn('Supabase load error:',e);
     showSyncStatus('⚠ Sin conexión — modo local','var(--amber)');
-    // Fallback to localStorage
     try{const s=localStorage.getItem('gestor_tuboleta_v3');if(s){const p=JSON.parse(s);if(Array.isArray(p)&&p.length>0)projects=p;}}catch(e2){}
   }
-  renderProjects();
+  if(!silent) renderProjects();
 }
 
 async function pushState(){
   try{
     const body=JSON.stringify({data: projects});
+    let serverTime=null;
     if(sbRowId){
-      await fetch(`${SB_URL}/rest/v1/projects?id=eq.${sbRowId}`,{method:'PATCH',headers:{...SB_HEADERS,'Prefer':'return=minimal'},body});
+      const res=await fetch(`${SB_URL}/rest/v1/projects?id=eq.${sbRowId}`,{method:'PATCH',headers:{...SB_HEADERS,'Prefer':'return=representation'},body});
+      const rows=await res.json();
+      if(rows&&rows[0]) serverTime=rows[0].updated_at;
     } else {
       const res=await fetch(`${SB_URL}/rest/v1/projects`,{method:'POST',headers:{...SB_HEADERS,'Prefer':'return=representation'},body});
       const rows=await res.json();
-      if(rows&&rows[0])sbRowId=rows[0].id;
+      if(rows&&rows[0]){sbRowId=rows[0].id;serverTime=rows[0].updated_at;}
     }
-    // Also keep localStorage as backup
+    if(serverTime) lastSyncedAt=serverTime;
     localStorage.setItem('gestor_tuboleta_v3',JSON.stringify(projects));
   }catch(e){
     console.warn('Supabase save error:',e);
@@ -1113,10 +1174,19 @@ function saveState(){
   saveTimer=setTimeout(async()=>{
     await pushState();
     showSyncStatus('✓ Guardado','var(--green)');
-  }, 600); // debounce 600ms so rapid changes batch together
+  }, 600);
 }
 
-loadState();
+// Poll every 15 seconds for changes from other devices
+function startPolling(){
+  if(pollInterval) clearInterval(pollInterval);
+  pollInterval=setInterval(()=>{
+    // Only poll if not currently saving
+    if(!saveTimer) loadState(true);
+  }, 15000);
+}
+
+loadState().then(()=>startPolling());
 </script>
 </body>
 </html>
