@@ -223,6 +223,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <button class="filter-btn" onclick="setFilter('Producto',this)">Producto</button>
         <button class="filter-btn" onclick="setFilter('Proyecto',this)">Proyecto</button>
         <button class="filter-btn" onclick="setFilter('Comercial',this)">Comercial</button>
+        <button class="filter-btn" onclick="setFilter('Iniciativa',this)">🌱 Iniciativas</button>
         <button class="filter-btn" onclick="setFilter('Alta',this)">Alta prioridad</button>
       </div>
       <div class="col-lbls" style="grid-template-columns:20px 18px 1fr 90px 80px 72px 76px 50px">
@@ -262,7 +263,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <div class="fg"><label class="fl">Nombre</label><input class="fi" id="f-name"></div>
     <div class="frow">
       <div class="fg"><label class="fl">Categoría</label>
-        <select class="fi" id="f-cat"><option>Producto</option><option>Proyecto</option><option>Comercial</option><option>Interno</option></select></div>
+        <select class="fi" id="f-cat"><option>Producto</option><option>Proyecto</option><option>Comercial</option><option>Iniciativa</option><option>Interno</option></select></div>
       <div class="fg"><label class="fl">Estado</label>
         <select class="fi" id="f-status"><option>En curso</option><option>En riesgo</option><option>Bloqueado</option><option>Completado</option><option>Planeado</option></select></div>
     </div>
@@ -477,8 +478,8 @@ function renderProjects(){
   const c=document.getElementById('proj-list');if(!c)return;
   c.innerHTML='';
 
-  const GROUP_ORDER=['Proyecto','Comercial','Producto','Interno'];
-  const GROUP_ICONS={'Proyecto':'⚙️','Comercial':'💼','Producto':'📦','Interno':'🏠'};
+  const GROUP_ORDER=['Proyecto','Comercial','Producto','Iniciativa','Interno'];
+  const GROUP_ICONS={'Proyecto':'⚙️','Comercial':'💼','Producto':'📦','Iniciativa':'🌱','Interno':'🏠'};
   const useGroups = filterMode==='todos' && !search;
 
   if(useGroups){
@@ -599,22 +600,57 @@ function renderRoadmap(p){
     const s=Math.max(0,item.startWeek),e=Math.min(TOTAL_WEEKS-1,item.endWeek);
     const cells=WEEK_LABELS.map((_,i)=>`<div class="rm-cell${WEEK_LABELS[i].isCurrent?' current-col':''}"></div>`).join('');
     const left=s*WEEK_W,width=(e-s+1)*WEEK_W-4;
-    return `<div class="rm-row">
-      <div class="rm-label" title="${item.label}">${item.label}</div>
-      <div class="rm-cells">${cells}<div class="rm-bar" style="left:${left+2}px;width:${width}px;background:${item.color}">${item.label}</div></div>
+    const isEditing=item._editing||false;
+    if(isEditing){
+      return `<div class="rm-row" id="rm-row-${p.id}-${item.id}">
+        <div class="rm-label">
+          <input class="t-inp" value="${item.label}" onchange="updateRmField(${p.id},${item.id},'label',this.value)" style="width:120px;font-size:11px;padding:2px 6px">
+        </div>
+        <div class="rm-cells" style="align-items:center;gap:4px;padding:4px 0">
+          ${cells}
+          <div class="rm-bar" style="left:${left+2}px;width:${width}px;background:${item.color};opacity:.6">${item.label}</div>
+          <div style="position:absolute;left:0;top:50%;transform:translateY(-50%);display:flex;gap:4px;z-index:10;padding-left:${left+2}px">
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;padding:4px;flex-shrink:0;min-width:220px">
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text2);width:60px">Inicio:</span>
+            <input class="t-inp" type="number" value="${item.startWeek}" min="0" max="15" onchange="updateRmField(${p.id},${item.id},'startWeek',+this.value)" style="width:50px;padding:2px 4px;font-size:11px">
+            <span style="font-size:10px;color:var(--text3)">${fmtW(addWeeks(WEEK0,item.startWeek))}</span>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text2);width:60px">Fin:</span>
+            <input class="t-inp" type="number" value="${item.endWeek}" min="0" max="15" onchange="updateRmField(${p.id},${item.id},'endWeek',+this.value)" style="width:50px;padding:2px 4px;font-size:11px">
+            <span style="font-size:10px;color:var(--text3)">${fmtW(addWeeks(WEEK0,item.endWeek))}</span>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text2);width:60px">Color:</span>
+            <input type="color" value="${item.color}" onchange="updateRmField(${p.id},${item.id},'color',this.value)" style="width:38px;height:24px;padding:1px;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            <button class="btn-add" onclick="closeRmEdit(${p.id},${item.id})" style="padding:2px 8px;font-size:10px">✓ Listo</button>
+            <span class="rm-del" onclick="deleteRmItem(${p.id},${item.id})" style="opacity:1;font-size:16px;margin-left:4px">×</span>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `<div class="rm-row" id="rm-row-${p.id}-${item.id}">
+      <div class="rm-label" title="${item.label}" style="cursor:pointer" onclick="openRmEdit(${p.id},${item.id})">${item.label} <span style="font-size:9px;color:var(--text3)">✎</span></div>
+      <div class="rm-cells">${cells}
+        <div class="rm-bar" style="left:${left+2}px;width:${width}px;background:${item.color};cursor:pointer" onclick="openRmEdit(${p.id},${item.id})" title="Clic para editar">${item.label}</div>
+      </div>
       <span class="rm-del" onclick="deleteRmItem(${p.id},${item.id})">×</span>
     </div>`;
   }).join('');
+
   return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <div style="font-size:10px;color:var(--text3)">Semana actual resaltada en azul · Semana 0 = hace 2 semanas</div>
+    <div style="font-size:10px;color:var(--text3)">Clic en una barra o nombre para editar · Semana actual en azul</div>
     <div style="display:flex;gap:6px">
       <button class="btn" style="font-size:10px;padding:3px 9px" onclick="exportRoadmapPNG(${p.id})">↓ PNG</button>
       <button class="btn" style="font-size:10px;padding:3px 9px" onclick="exportRoadmapCSV(${p.id})">↓ CSV</button>
     </div>
   </div>
-  <div class="roadmap-wrap" id="rm-wrap-${p.id}"><div class="roadmap-grid" id="rm-grid-${p.id}">
+  <div class="roadmap-wrap"><div class="roadmap-grid">
     <div style="display:flex"><div style="width:130px;flex-shrink:0"></div><div class="rm-header-row">${headerCells}</div></div>
-    ${rows||'<div class="empty">Sin hitos en el roadmap</div>'}
+    ${rows||'<div class="empty">Sin hitos — añade uno abajo</div>'}
   </div></div>
   <div class="rm-add" style="margin-top:10px">
     <input class="t-inp" id="rm-lbl-${p.id}" placeholder="Nombre del hito..." style="min-width:120px">
@@ -623,6 +659,29 @@ function renderRoadmap(p){
     <input class="t-inp" type="color" id="rm-col-${p.id}" value="#1a4480" style="width:38px;padding:2px;cursor:pointer">
     <button class="btn-add" onclick="addRmItem(${p.id})">+ Hito</button>
   </div>`;
+}
+
+function openRmEdit(pid,rid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  p.roadmap.forEach(r=>r._editing=false);
+  const item=p.roadmap.find(x=>x.id===rid);if(item)item._editing=true;
+  renderProjects();
+}
+function closeRmEdit(pid,rid){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const item=p.roadmap.find(x=>x.id===rid);if(item)item._editing=false;
+  saveState();renderProjects();
+}
+function updateRmField(pid,rid,field,value){
+  const p=projects.find(x=>x.id===pid);if(!p)return;
+  const item=p.roadmap.find(x=>x.id===rid);if(!item)return;
+  item[field]=value;
+  // Re-render just the row label in the bar without full refresh
+  const rowEl=document.getElementById(`rm-row-${pid}-${rid}`);
+  if(rowEl&&field==='label'){
+    const bar=rowEl.querySelector('.rm-bar');
+    if(bar)bar.textContent=value;
+  }
 }
 
 function exportRoadmapCSV(pid){
